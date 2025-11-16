@@ -209,7 +209,7 @@ The repository includes the following Railway-specific files:
 
 - `railway.toml` - Railway deployment configuration
 - `Procfile` - Process definition for the web server
-- `runtime.txt` - Python version specification
+- `.python-version` - Python version specification (3.11)
 - `.railwayignore` - Files to exclude from deployment
 
 #### Manual Deployment
@@ -235,13 +235,46 @@ While not required, you can set these in Railway for customization:
 - `PORT` - Automatically set by Railway (default: assigned by Railway)
 - You can also override config.yaml settings via environment variables in your code if needed
 
+## Testing
+
+This project includes comprehensive test coverage with unit and integration tests.
+
+### Running Tests
+
+Install test dependencies:
+```bash
+uv sync --extra test
+```
+
+Run all tests:
+```bash
+uv run pytest
+```
+
+Run with coverage report:
+```bash
+uv run pytest --cov=src --cov-report=html
+```
+
+Run specific test files:
+```bash
+uv run pytest tests/unit/test_game_scorer.py
+uv run pytest tests/integration/
+```
+
+### Test Structure
+
+- `tests/unit/` - Unit tests for individual components
+- `tests/integration/` - Integration tests for CLI, API, and Web interfaces
+- `tests/fixtures/` - Shared test data and fixtures
+
+See `tests/README.md` for detailed testing documentation.
+
 ## Requirements
 
-- Python 3.7+
-- requests
-- flask
-- pyyaml
-- python-dateutil
+- Python 3.11+
+- Package management via [uv](https://github.com/astral-sh/uv)
+- All dependencies managed in `pyproject.toml`
 
 ## License
 

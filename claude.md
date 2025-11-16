@@ -131,6 +131,9 @@ When making changes:
 # Install dependencies first
 uv sync
 
+# Install with testing dependencies
+uv sync --extra test
+
 # CLI
 uv run python src/interfaces/cli.py
 
@@ -139,6 +142,23 @@ uv run python src/interfaces/api_server.py
 
 # Web Interface
 uv run python src/interfaces/web/app.py
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
+
+# Run specific test file
+uv run pytest tests/unit/test_game_scorer.py
+
+# Run only unit or integration tests
+uv run pytest tests/unit/
+uv run pytest tests/integration/
 ```
 
 ### Common Tasks
@@ -177,14 +197,46 @@ uv run python src/interfaces/web/app.py
 - Missing game data falls back to defaults (0 lead changes, etc.)
 - Invalid team abbreviations are handled gracefully
 
-## Testing Considerations
+## Testing
+
+### Test Suite
+
+The project includes comprehensive test coverage:
+
+**Unit Tests** (`tests/unit/`):
+- `test_game_scorer.py` - Tests scoring algorithm logic
+- `test_recommender.py` - Tests recommendation engine
+- `test_nba_client.py` - Tests NBA API client with mocking
+
+**Integration Tests** (`tests/integration/`):
+- `test_cli.py` - Tests CLI interface end-to-end
+- `test_api_server.py` - Tests REST API endpoints
+
+**Fixtures** (`tests/fixtures/`):
+- `sample_data.py` - Shared test data for consistent testing
+
+### Running Tests
+
+```bash
+# Install test dependencies
+uv sync --extra test
+
+# Run all tests
+uv run pytest
+
+# Run with coverage report
+uv run pytest --cov=src --cov-report=html
+```
+
+### Testing Best Practices
 
 When testing or debugging:
 
-1. **Mock NBA API**: Responses can be slow/unreliable; consider mocking in tests
-2. **Test with various dates**: Weekend vs weekday games differ
-3. **Edge cases**: No games in date range, API failures, missing data
-4. **Scoring edge cases**: Tied games, blowouts, low-scoring games
+1. **Mock NBA API**: Responses can be slow/unreliable; tests use `responses` library for mocking
+2. **Test with various dates**: Use `freezegun` to test different time periods
+3. **Edge cases**: Tests cover no games in date range, API failures, missing data
+4. **Scoring edge cases**: Tests include tied games, blowouts, low-scoring games
+5. **Use fixtures**: Leverage `tests/fixtures/sample_data.py` for consistent test data
 
 ## Code Style
 
@@ -196,12 +248,23 @@ When testing or debugging:
 
 ## Dependencies
 
+**Production Dependencies**:
 - **requests**: NBA API calls
 - **flask**: REST API and web interface
 - **pyyaml**: Configuration file parsing
 - **python-dateutil**: Date manipulation
+- **gunicorn**: Production WSGI server
 
-All in `pyproject.toml` - install via `uv sync`
+**Test Dependencies** (optional):
+- **pytest**: Testing framework
+- **pytest-cov**: Coverage reporting
+- **pytest-mock**: Mocking utilities
+- **responses**: HTTP response mocking
+- **freezegun**: Time/date mocking
+
+All managed in `pyproject.toml`:
+- Install production only: `uv sync`
+- Install with tests: `uv sync --extra test`
 
 ## Future Enhancement Ideas
 
@@ -222,5 +285,7 @@ Consider these when adding features:
 3. **Preserve modularity**: Changes should work across all interfaces (CLI, API, Web)
 4. **Update documentation**: If changing scoring, update README.md
 5. **Test all interfaces**: A change to core logic affects all three interfaces
-6. **Check game data structure**: Look at what `NBAClient` returns before using it
-7. **Scoring is configurable**: Don't hardcode values, use config weights
+6. **Run tests**: Use `uv run pytest` to verify changes don't break existing functionality
+7. **Check game data structure**: Look at what `NBAClient` returns before using it
+8. **Scoring is configurable**: Don't hardcode values, use config weights
+9. **Use uv for dependencies**: All package management is done via `uv`, not pip
