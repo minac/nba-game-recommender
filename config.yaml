@@ -1,0 +1,22 @@
+# NBA Game Recommender Configuration
+favorite_team: null  # Set to team abbreviation (e.g., "LAL", "BOS", "GSW") or leave null
+
+# Scoring weights
+scoring:
+  lead_changes_weight: 10        # Points per lead change
+  top5_team_bonus: 50            # Bonus if top 5 team plays
+  close_game_bonus: 100          # Max bonus for close games
+  min_total_points: 200          # Minimum total points threshold
+  star_power_weight: 20          # Points per star player
+  favorite_team_bonus: 75        # Bonus if favorite team plays
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+
+# Web Configuration
+web:
+  host: "0.0.0.0"
+  port: 8080

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Game Recommender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #2a5298;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #f37335 0%, #fdc830 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .game-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .game-title {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .game-date {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .score-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin: 30px 0;
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .team {
+            text-align: center;
+        }
+
+        .team-score {
+            font-size: 1.5em;
+            margin-top: 10px;
+        }
+
+        .vs {
+            opacity: 0.7;
+        }
+
+        .engagement-score {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .engagement-score h3 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .engagement-score .score {
+            font-size: 3em;
+            font-weight: bold;
+        }
+
+        .breakdown {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .breakdown h4 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .games-list {
+            margin-top: 20px;
+        }
+
+        .game-item {
+            background: #f8f9fa;
+            border-left: 4px solid #2a5298;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            transition: transform 0.2s;
+        }
+
+        .game-item:hover {
+            transform: translateX(5px);
+        }
+
+        .game-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .game-item-score {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .game-item-engagement {
+            color: #2a5298;
+            font-weight: 600;
+        }
+
+        .game-item-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+
+            .score-display {
+                font-size: 1.5em;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏀 NBA Game Recommender</h1>
+            <p>Find the most engaging game from the past week</p>
+        </header>
+
+        <div class="card">
+            <form id="recommendForm">
+                <div class="form-group">
+                    <label for="days">Days to Look Back:</label>
+                    <input type="number" id="days" name="days" min="1" max="30" value="7" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="favoriteTeam">Favorite Team (Optional):</label>
+                    <input type="text" id="favoriteTeam" name="favoriteTeam" placeholder="e.g., LAL, BOS, GSW" maxlength="3">
+                    <small style="color: #666;">Enter 3-letter team abbreviation for bonus points</small>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="showAll" name="showAll">
+                    <label for="showAll" style="margin-bottom: 0;">Show all games ranked</label>
+                </div>
+
+                <button type="submit" class="btn">Find Best Game</button>
+            </form>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing NBA games...</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('recommendForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const days = document.getElementById('days').value;
+            const favoriteTeam = document.getElementById('favoriteTeam').value.trim().toUpperCase();
+            const showAll = document.getElementById('showAll').checked;
+
+            // Hide previous results and errors
+            results.style.display = 'none';
+            errorDiv.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        days: parseInt(days),
+                        favorite_team: favoriteTeam || null,
+                        show_all: showAll
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch recommendations');
+                }
+
+                loading.style.display = 'none';
+                results.style.display = 'block';
+
+                if (showAll) {
+                    displayAllGames(data.games);
+                } else {
+                    displayBestGame(data.game);
+                }
+
+            } catch (error) {
+                loading.style.display = 'none';
+                errorDiv.textContent = `Error: ${error.message}`;
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        function displayBestGame(result) {
+            const game = result.game;
+            const breakdown = result.breakdown;
+
+            results.innerHTML = `
+                <div class="game-card">
+                    <div class="game-header">
+                        <div class="game-title">Most Engaging Game</div>
+                        <div class="game-date">${game.game_date}</div>
+                    </div>
+
+                    <div class="score-display">
+                        <div class="team">
+                            <div>${game.away_team.name}</div>
+                            <div class="team-score">${game.away_team.score}</div>
+                        </div>
+                        <div class="vs">@</div>
+                        <div class="team">
+                            <div>${game.home_team.name}</div>
+                            <div class="team-score">${game.home_team.score}</div>
+                        </div>
+                    </div>
+
+                    <div class="engagement-score">
+                        <h3>Engagement Score</h3>
+                        <div class="score">${result.score.toFixed(2)}</div>
+                    </div>
+
+                    <div class="breakdown">
+                        <h4>Score Breakdown</h4>
+                        <div class="breakdown-item">
+                            <span>Lead Changes</span>
+                            <span>${breakdown.lead_changes.count} (${breakdown.lead_changes.points.toFixed(1)} pts)</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Top 5 Teams</span>
+                            <span>${breakdown.top5_teams.count} team(s) (${breakdown.top5_teams.points.toFixed(1)} pts)</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Game Closeness</span>
+                            <span>${breakdown.close_game.margin} pt margin (${breakdown.close_game.points.toFixed(1)} pts)</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Total Points</span>
+                            <span>${breakdown.total_points.total} (${breakdown.total_points.threshold_met ? '✓' : '✗'} 200+)</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Star Players</span>
+                            <span>${breakdown.star_power.count} (${breakdown.star_power.points.toFixed(1)} pts)</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Favorite Team</span>
+                            <span>${breakdown.favorite_team.has_favorite ? 'Yes' : 'No'} (${breakdown.favorite_team.points.toFixed(1)} pts)</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayAllGames(games) {
+            let html = '<div class="card"><h2>All Games Ranked by Engagement</h2><div class="games-list">';
+
+            games.forEach((result, index) => {
+                const game = result.game;
+                const breakdown = result.breakdown;
+
+                html += `
+                    <div class="game-item">
+                        <div class="game-item-header">
+                            <div class="game-item-score">
+                                ${index + 1}. ${game.away_team.abbr} ${game.away_team.score} @ ${game.home_team.score} ${game.home_team.abbr}
+                            </div>
+                            <div class="game-item-engagement">Score: ${result.score.toFixed(2)}</div>
+                        </div>
+                        <div class="game-item-details">
+                            ${game.game_date} |
+                            Lead Changes: ${breakdown.lead_changes.count} |
+                            Margin: ${breakdown.close_game.margin} pts |
+                            Total: ${breakdown.total_points.total} pts
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div></div>';
+            results.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

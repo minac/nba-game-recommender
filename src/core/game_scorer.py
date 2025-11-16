@@ -1,0 +1,123 @@
+"""Game scoring algorithm for NBA game recommendations."""
+from typing import Dict, Optional
+
+
+class GameScorer:
+    """Scores NBA games based on multiple engagement criteria."""
+
+    def __init__(self, config: Dict):
+        """
+        Initialize the game scorer with configuration.
+
+        Args:
+            config: Configuration dictionary with scoring weights
+        """
+        self.lead_changes_weight = config.get('lead_changes_weight', 10)
+        self.top5_team_bonus = config.get('top5_team_bonus', 50)
+        self.close_game_bonus = config.get('close_game_bonus', 100)
+        self.min_total_points = config.get('min_total_points', 200)
+        self.star_power_weight = config.get('star_power_weight', 20)
+        self.favorite_team_bonus = config.get('favorite_team_bonus', 75)
+
+    def score_game(self, game: Dict, favorite_team: Optional[str] = None,
+                   top5_teams: set = None) -> Dict:
+        """
+        Calculate engagement score for a game.
+
+        Args:
+            game: Game dictionary with all game information
+            favorite_team: Optional favorite team abbreviation
+            top5_teams: Set of top 5 team abbreviations
+
+        Returns:
+            Dictionary with score and breakdown
+        """
+        score = 0
+        breakdown = {}
+
+        # Criterion 1: Lead changes (more is better)
+        lead_changes = game.get('lead_changes', 0)
+        lead_score = lead_changes * self.lead_changes_weight
+        score += lead_score
+        breakdown['lead_changes'] = {
+            'count': lead_changes,
+            'points': lead_score
+        }
+
+        # Criterion 2: Top 5 team participation
+        home_abbr = game['home_team']['abbr']
+        away_abbr = game['away_team']['abbr']
+        top5_count = 0
+
+        if top5_teams:
+            if home_abbr in top5_teams:
+                top5_count += 1
+            if away_abbr in top5_teams:
+                top5_count += 1
+
+        top5_score = top5_count * self.top5_team_bonus
+        score += top5_score
+        breakdown['top5_teams'] = {
+            'count': top5_count,
+            'points': top5_score
+        }
+
+        # Criterion 3: Final margin (closer is better)
+        # Use exponential decay: closer games get more points
+        # Max bonus at 0 margin, decreasing as margin increases
+        margin = game.get('final_margin', 100)
+        if margin <= 3:
+            close_score = self.close_game_bonus
+        elif margin <= 5:
+            close_score = self.close_game_bonus * 0.8
+        elif margin <= 10:
+            close_score = self.close_game_bonus * 0.5
+        elif margin <= 15:
+            close_score = self.close_game_bonus * 0.25
+        else:
+            close_score = 0
+
+        score += close_score
+        breakdown['close_game'] = {
+            'margin': margin,
+            'points': close_score
+        }
+
+        # Criterion 4: Minimum total points (200+)
+        total_points = game.get('total_points', 0)
+        meets_threshold = total_points >= self.min_total_points
+        breakdown['total_points'] = {
+            'total': total_points,
+            'threshold_met': meets_threshold
+        }
+
+        # If game doesn't meet minimum points threshold, heavily penalize
+        if not meets_threshold:
+            score *= 0.1  # 90% penalty
+            breakdown['total_points']['penalty_applied'] = True
+
+        # Criterion 5: Star power
+        star_count = game.get('star_players_count', 0)
+        star_score = star_count * self.star_power_weight
+        score += star_score
+        breakdown['star_power'] = {
+            'count': star_count,
+            'points': star_score
+        }
+
+        # Criterion 6: Favorite team bonus
+        has_favorite = False
+        if favorite_team:
+            if home_abbr == favorite_team or away_abbr == favorite_team:
+                score += self.favorite_team_bonus
+                has_favorite = True
+
+        breakdown['favorite_team'] = {
+            'has_favorite': has_favorite,
+            'points': self.favorite_team_bonus if has_favorite else 0
+        }
+
+        return {
+            'score': round(score, 2),
+            'breakdown': breakdown
+        }
