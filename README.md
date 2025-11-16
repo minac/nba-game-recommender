@@ -65,6 +65,9 @@ uv run python src/interfaces/cli.py -t LAL
 
 # Show all games ranked
 uv run python src/interfaces/cli.py --all
+
+# List current star players
+uv run python src/interfaces/cli.py --list-stars
 ```
 
 ### REST API

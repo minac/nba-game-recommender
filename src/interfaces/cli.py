@@ -51,6 +51,12 @@ def main():
         help='Show detailed scoring explanation with numbers and reasoning'
     )
 
+    parser.add_argument(
+        '--list-stars',
+        action='store_true',
+        help='List all current star players tracked by the system'
+    )
+
     args = parser.parse_args()
 
     logger.info(f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}, explain={args.explain}")
@@ -58,6 +64,30 @@ def main():
     try:
         recommender = GameRecommender(config_path=args.config)
         logger.info(f"Loaded configuration from {args.config}")
+
+        # Handle --list-stars command
+        if args.list_stars:
+            star_players = recommender.nba_client.STAR_PLAYERS
+            data_source = recommender.config.get('data_source', 'nba_stats')
+
+            print(f"\n{'='*60}")
+            print(f"⭐ CURRENT STAR PLAYERS")
+            print(f"{'='*60}")
+            print(f"Data Source: {data_source}")
+            print(f"Total Players: {len(star_players)}")
+            print(f"{'='*60}\n")
+
+            # Sort players alphabetically for better readability
+            sorted_players = sorted(star_players)
+
+            for i, player in enumerate(sorted_players, 1):
+                print(f"{i:2d}. {player}")
+
+            print(f"\n{'='*60}")
+            print(f"Note: Star players are weighted at {recommender.scorer.star_power_weight} points each")
+            print(f"      in the engagement scoring algorithm.")
+            print(f"{'='*60}\n")
+            return
 
         if args.all:
             # Show all games ranked
