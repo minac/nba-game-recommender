@@ -4,6 +4,10 @@ from src.api.nba_client import NBAClient
 from src.core.game_scorer import GameScorer
 import yaml
 
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class GameRecommender:
     """Recommends the most engaging NBA game from recent games."""
@@ -34,13 +38,14 @@ class GameRecommender:
             Dictionary with best game and its score breakdown
         """
         # Fetch games
-        print(f"Fetching NBA games from the last {days} days...")
+        logger.info(f"Fetching NBA games from the last {days} days...")
         games = self.nba_client.get_games_last_n_days(days)
 
         if not games:
+            logger.warning("No completed games found")
             return None
 
-        print(f"Found {len(games)} completed games")
+        logger.info(f"Found {len(games)} completed games")
 
         # Score all games
         scored_games = []

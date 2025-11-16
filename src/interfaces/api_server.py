@@ -8,7 +8,10 @@ from flask import Flask, jsonify, request
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.core.recommender import GameRecommender
+from src.utils.logger import get_logger
 import yaml
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 
@@ -41,20 +44,26 @@ def get_best_game():
         days = int(request.args.get('days', 7))
         favorite_team = request.args.get('team')
 
+        logger.info(f"GET /api/best-game - days={days}, team={favorite_team}")
+
         if days < 1 or days > 30:
+            logger.warning(f"Invalid days parameter: {days}")
             return jsonify({'error': 'Days must be between 1 and 30'}), 400
 
         result = recommender.get_best_game(days=days, favorite_team=favorite_team)
 
         if not result:
+            logger.info("No games found for the given criteria")
             return jsonify({'error': 'No games found'}), 404
 
+        logger.info("Best game recommendation returned successfully")
         return jsonify({
             'success': True,
             'data': result
         })
 
     except Exception as e:
+        logger.error(f"Error in /api/best-game: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -74,11 +83,15 @@ def get_all_games():
         days = int(request.args.get('days', 7))
         favorite_team = request.args.get('team')
 
+        logger.info(f"GET /api/games - days={days}, team={favorite_team}")
+
         if days < 1 or days > 30:
+            logger.warning(f"Invalid days parameter: {days}")
             return jsonify({'error': 'Days must be between 1 and 30'}), 400
 
         results = recommender.get_all_games_ranked(days=days, favorite_team=favorite_team)
 
+        logger.info(f"Returning {len(results)} ranked games")
         return jsonify({
             'success': True,
             'count': len(results),
@@ -86,6 +99,7 @@ def get_all_games():
         })
 
     except Exception as e:
+        logger.error(f"Error in /api/games: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -105,12 +119,12 @@ def main():
     port = api_config.get('port', 5000)
     debug = api_config.get('debug', False)
 
-    print(f"🏀 NBA Game Recommender API starting on http://{host}:{port}")
-    print(f"\nEndpoints:")
-    print(f"  GET /api/health - Health check")
-    print(f"  GET /api/best-game?days=7&team=LAL - Get best game")
-    print(f"  GET /api/games?days=7 - Get all games ranked")
-    print(f"  GET /api/config - Get configuration\n")
+    logger.info(f"🏀 NBA Game Recommender API starting on http://{host}:{port}")
+    logger.info("Available endpoints:")
+    logger.info("  GET /api/health - Health check")
+    logger.info("  GET /api/best-game?days=7&team=LAL - Get best game")
+    logger.info("  GET /api/games?days=7 - Get all games ranked")
+    logger.info("  GET /api/config - Get configuration")
 
     app.run(host=host, port=port, debug=debug)
 

@@ -8,6 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.core.recommender import GameRecommender
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def main():
@@ -44,8 +47,11 @@ def main():
 
     args = parser.parse_args()
 
+    logger.info(f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}")
+
     try:
         recommender = GameRecommender(config_path=args.config)
+        logger.info(f"Loaded configuration from {args.config}")
 
         if args.all:
             # Show all games ranked
@@ -53,6 +59,7 @@ def main():
             games = recommender.get_all_games_ranked(days=args.days, favorite_team=args.team)
 
             if not games:
+                logger.warning("No games found for the specified criteria")
                 print("No completed games found in the specified period.")
                 return
 
@@ -75,16 +82,20 @@ def main():
             best_game = recommender.get_best_game(days=args.days, favorite_team=args.team)
 
             if not best_game:
+                logger.warning("No games found for the specified criteria")
                 print("No completed games found in the specified period.")
                 return
 
+            logger.info("Successfully retrieved best game recommendation")
             summary = recommender.format_game_summary(best_game)
             print(summary)
 
     except FileNotFoundError:
+        logger.error(f"Configuration file '{args.config}' not found")
         print(f"Error: Configuration file '{args.config}' not found.")
         sys.exit(1)
     except Exception as e:
+        logger.error(f"CLI error: {e}", exc_info=True)
         print(f"Error: {e}")
         sys.exit(1)
 
