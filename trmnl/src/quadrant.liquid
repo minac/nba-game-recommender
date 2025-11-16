@@ -12,11 +12,9 @@
       <div class="matchup">
         <div class="matchup-row">
           <span class="team-abbr">{{ game.away_team.abbr }}</span>
-          <span class="score">{{ game.away_team.score }}</span>
         </div>
         <div class="matchup-row">
           <span class="team-abbr">{{ game.home_team.abbr }}</span>
-          <span class="score">{{ game.home_team.score }}</span>
         </div>
       </div>
 
@@ -28,10 +26,6 @@
         {% endif %}
       </div>
 
-      <!-- Margin -->
-      <div class="margin-info">
-        {{ breakdown.close_game.margin }} pt margin
-      </div>
 
     {% else %}
 

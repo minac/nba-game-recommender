@@ -16,12 +16,10 @@
         <div class="teams">
           <div class="team-item">
             <div class="team-abbr">{{ game.away_team.abbr }}</div>
-            <div class="team-score">{{ game.away_team.score }}</div>
           </div>
           <div class="separator">@</div>
           <div class="team-item">
             <div class="team-abbr">{{ game.home_team.abbr }}</div>
-            <div class="team-score">{{ game.home_team.score }}</div>
           </div>
         </div>
 
@@ -39,10 +37,6 @@
           <div class="quick-stat">
             <div class="quick-stat__value">{{ breakdown.lead_changes.count }}</div>
             <div class="quick-stat__label">Lead Changes</div>
-          </div>
-          <div class="quick-stat">
-            <div class="quick-stat__value">{{ breakdown.close_game.margin }}</div>
-            <div class="quick-stat__label">Margin (pts)</div>
           </div>
         </div>
 

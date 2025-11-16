@@ -395,12 +395,10 @@
                     <div class="score-display">
                         <div class="team">
                             <div>${game.away_team.name}</div>
-                            <div class="team-score">${game.away_team.score}</div>
                         </div>
                         <div class="vs">@</div>
                         <div class="team">
                             <div>${game.home_team.name}</div>
-                            <div class="team-score">${game.home_team.score}</div>
                         </div>
                     </div>
 
@@ -421,7 +419,7 @@
                         </div>
                         <div class="breakdown-item">
                             <span>Game Closeness</span>
-                            <span>${breakdown.close_game.margin} pt margin (${breakdown.close_game.points.toFixed(1)} pts)</span>
+                            <span>${breakdown.close_game.points.toFixed(1)} pts</span>
                         </div>
                         <div class="breakdown-item">
                             <span>Total Points</span>
@@ -451,14 +449,13 @@
                     <div class="game-item">
                         <div class="game-item-header">
                             <div class="game-item-score">
-                                ${index + 1}. ${game.away_team.abbr} ${game.away_team.score} @ ${game.home_team.score} ${game.home_team.abbr}
+                                ${index + 1}. ${game.away_team.abbr} @ ${game.home_team.abbr}
                             </div>
-                            <div class="game-item-engagement">Score: ${result.score.toFixed(2)}</div>
+                            <div class="game-item-engagement">Engagement Score: ${result.score.toFixed(2)}</div>
                         </div>
                         <div class="game-item-details">
                             ${game.game_date} |
                             Lead Changes: ${breakdown.lead_changes.count} |
-                            Margin: ${breakdown.close_game.margin} pts |
                             Total: ${breakdown.total_points.total} pts
                         </div>
                     </div>

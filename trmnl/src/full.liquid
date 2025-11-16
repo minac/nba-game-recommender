@@ -23,7 +23,6 @@
           <div class="team team--away">
             <div class="team__name">{{ game.away_team.name }}</div>
             <div class="team__abbr text-muted">{{ game.away_team.abbr }}</div>
-            <div class="team__score">{{ game.away_team.score }}</div>
           </div>
 
           <div class="vs">
@@ -33,7 +32,6 @@
           <div class="team team--home">
             <div class="team__name">{{ game.home_team.name }}</div>
             <div class="team__abbr text-muted">{{ game.home_team.abbr }}</div>
-            <div class="team__score">{{ game.home_team.score }}</div>
           </div>
         </div>
 
@@ -54,8 +52,8 @@
             <span>{{ breakdown.top5_teams.count }} ({{ breakdown.top5_teams.points }} pts)</span>
           </div>
           <div class="breakdown__row">
-            <span>Final Margin</span>
-            <span>{{ breakdown.close_game.margin }} pts ({{ breakdown.close_game.points }} pts)</span>
+            <span>Game Closeness</span>
+            <span>{{ breakdown.close_game.points }} pts</span>
           </div>
           <div class="breakdown__row">
             <span>Star Players</span>

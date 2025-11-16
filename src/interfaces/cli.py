@@ -72,10 +72,9 @@ def main():
                 away = game['away_team']
                 home = game['home_team']
 
-                print(f"{i}. {away['abbr']} {away['score']} @ {home['score']} {home['abbr']}")
-                print(f"   Date: {game['game_date']} | Score: {result['score']:.2f}")
-                print(f"   Lead Changes: {result['breakdown']['lead_changes']['count']} | "
-                      f"Margin: {result['breakdown']['close_game']['margin']} pts\n")
+                print(f"{i}. {away['abbr']} @ {home['abbr']}")
+                print(f"   Date: {game['game_date']} | Engagement Score: {result['score']:.2f}")
+                print(f"   Lead Changes: {result['breakdown']['lead_changes']['count']}\n")
 
         else:
             # Show best game only

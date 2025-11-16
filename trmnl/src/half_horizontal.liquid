@@ -18,12 +18,10 @@
         <div class="game-score">
           <div class="team">
             <span class="team__abbr">{{ game.away_team.abbr }}</span>
-            <span class="team__score">{{ game.away_team.score }}</span>
           </div>
           <span class="vs">@</span>
           <div class="team">
             <span class="team__abbr">{{ game.home_team.abbr }}</span>
-            <span class="team__score">{{ game.home_team.score }}</span>
           </div>
         </div>
 
@@ -38,10 +36,6 @@
           <div class="stat">
             <span class="stat__label">Lead Changes:</span>
             <span class="stat__value">{{ breakdown.lead_changes.count }}</span>
-          </div>
-          <div class="stat">
-            <span class="stat__label">Margin:</span>
-            <span class="stat__value">{{ breakdown.close_game.margin }} pts</span>
           </div>
           {% if breakdown.favorite_team.has_favorite %}
           <div class="stat stat--highlight">
