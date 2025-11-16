@@ -125,6 +125,8 @@ When making changes:
 
 ## Working with the Codebase
 
+**IMPORTANT**: This project uses `uv` for all package management and Python execution. **Always use `uv` - never use `pip`, `pip3`, `python`, or `python3` directly.**
+
 ### Running the Application
 
 ```bash
@@ -262,9 +264,11 @@ When testing or debugging:
 - **responses**: HTTP response mocking
 - **freezegun**: Time/date mocking
 
-All managed in `pyproject.toml`:
+All managed in `pyproject.toml` using **uv only** (never use pip):
 - Install production only: `uv sync`
 - Install with tests: `uv sync --extra test`
+- Add new dependency: `uv add <package>`
+- Remove dependency: `uv remove <package>`
 
 ## Future Enhancement Ideas
 
@@ -280,12 +284,12 @@ Consider these when adding features:
 
 ## Tips for Claude
 
-1. **Read config first**: Always check `config.yaml` to understand current settings
-2. **Follow the architecture**: Keep core logic in `src/core/`, interfaces separate
-3. **Preserve modularity**: Changes should work across all interfaces (CLI, API, Web)
-4. **Update documentation**: If changing scoring, update README.md
-5. **Test all interfaces**: A change to core logic affects all three interfaces
-6. **Run tests**: Use `uv run pytest` to verify changes don't break existing functionality
-7. **Check game data structure**: Look at what `NBAClient` returns before using it
-8. **Scoring is configurable**: Don't hardcode values, use config weights
-9. **Use uv for dependencies**: All package management is done via `uv`, not pip
+1. **ALWAYS use uv**: Never use `pip`, `pip3`, `python`, or `python3` directly. Always use `uv sync` for dependencies and `uv run python` for execution
+2. **Read config first**: Always check `config.yaml` to understand current settings
+3. **Follow the architecture**: Keep core logic in `src/core/`, interfaces separate
+4. **Preserve modularity**: Changes should work across all interfaces (CLI, API, Web)
+5. **Update documentation**: If changing scoring, update README.md
+6. **Test all interfaces**: A change to core logic affects all three interfaces
+7. **Run tests**: Use `uv run pytest` to verify changes don't break existing functionality
+8. **Check game data structure**: Look at what `NBAClient` returns before using it
+9. **Scoring is configurable**: Don't hardcode values, use config weights
