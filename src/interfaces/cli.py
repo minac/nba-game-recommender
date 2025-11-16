@@ -57,6 +57,12 @@ def main():
         help='List all current star players tracked by the system'
     )
 
+    parser.add_argument(
+        '--top-teams',
+        action='store_true',
+        help='List current top 5 teams by win percentage'
+    )
+
     args = parser.parse_args()
 
     logger.info(f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}, explain={args.explain}")
@@ -85,6 +91,30 @@ def main():
 
             print(f"\n{'='*60}")
             print(f"Note: Star players are weighted at {recommender.scorer.star_power_weight} points each")
+            print(f"      in the engagement scoring algorithm.")
+            print(f"{'='*60}\n")
+            return
+
+        # Handle --top-teams command
+        if args.top_teams:
+            top_teams = recommender.nba_client.TOP_5_TEAMS
+            data_source = recommender.config.get('data_source', 'nba_stats')
+
+            print(f"\n{'='*60}")
+            print(f"🏆 TOP 5 TEAMS BY WIN PERCENTAGE")
+            print(f"{'='*60}")
+            print(f"Data Source: {data_source}")
+            print(f"Total Teams: {len(top_teams)}")
+            print(f"{'='*60}\n")
+
+            # Sort teams alphabetically for better readability
+            sorted_teams = sorted(top_teams)
+
+            for i, team in enumerate(sorted_teams, 1):
+                print(f"{i}. {team}")
+
+            print(f"\n{'='*60}")
+            print(f"Note: Top 5 teams receive a {recommender.scorer.top5_team_bonus} point bonus")
             print(f"      in the engagement scoring algorithm.")
             print(f"{'='*60}\n")
             return
