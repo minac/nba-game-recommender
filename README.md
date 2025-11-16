@@ -175,6 +175,66 @@ Score Breakdown:
 ============================================================
 ```
 
+## Deployment
+
+### Deploy to Railway
+
+This application is configured for easy deployment to [Railway](https://railway.com/).
+
+#### Quick Deploy
+
+1. **Fork or clone this repository**
+
+2. **Sign up for Railway** at https://railway.com/
+
+3. **Create a new project**:
+   - Click "New Project" in your Railway dashboard
+   - Select "Deploy from GitHub repo"
+   - Choose this repository
+   - Railway will automatically detect the configuration and deploy
+
+4. **Configure environment (optional)**:
+   - No environment variables are required for basic functionality
+   - The app will use the default `config.yaml` settings
+   - Railway will automatically assign a PORT environment variable
+
+5. **Access your deployed app**:
+   - Railway will provide a public URL (e.g., `https://your-app.up.railway.app`)
+   - The web interface will be available at the root URL
+   - No additional configuration needed!
+
+#### Configuration Files
+
+The repository includes the following Railway-specific files:
+
+- `railway.toml` - Railway deployment configuration
+- `Procfile` - Process definition for the web server
+- `runtime.txt` - Python version specification
+- `.railwayignore` - Files to exclude from deployment
+
+#### Manual Deployment
+
+You can also use the Railway CLI:
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Initialize and deploy
+railway init
+railway up
+```
+
+#### Environment Variables (Optional)
+
+While not required, you can set these in Railway for customization:
+
+- `PORT` - Automatically set by Railway (default: assigned by Railway)
+- You can also override config.yaml settings via environment variables in your code if needed
+
 ## Requirements
 
 - Python 3.7+
