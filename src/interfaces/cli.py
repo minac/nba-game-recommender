@@ -45,9 +45,15 @@ def main():
         help='Path to configuration file (default: config.yaml)'
     )
 
+    parser.add_argument(
+        '-e', '--explain',
+        action='store_true',
+        help='Show detailed scoring explanation with numbers and reasoning'
+    )
+
     args = parser.parse_args()
 
-    logger.info(f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}")
+    logger.info(f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}, explain={args.explain}")
 
     try:
         recommender = GameRecommender(config_path=args.config)
@@ -74,8 +80,13 @@ def main():
 
                 print(f"{i}. {away['abbr']} {away['score']} @ {home['score']} {home['abbr']}")
                 print(f"   Date: {game['game_date']} | Score: {result['score']:.2f}")
-                print(f"   Lead Changes: {result['breakdown']['lead_changes']['count']} | "
-                      f"Margin: {result['breakdown']['close_game']['margin']} pts\n")
+
+                if args.explain:
+                    # Show detailed breakdown
+                    print(f"   {recommender.format_score_explanation(result)}")
+                else:
+                    print(f"   Lead Changes: {result['breakdown']['lead_changes']['count']} | "
+                          f"Margin: {result['breakdown']['close_game']['margin']} pts\n")
 
         else:
             # Show best game only
@@ -87,7 +98,7 @@ def main():
                 return
 
             logger.info("Successfully retrieved best game recommendation")
-            summary = recommender.format_game_summary(best_game)
+            summary = recommender.format_game_summary(best_game, explain=args.explain)
             print(summary)
 
     except FileNotFoundError:
