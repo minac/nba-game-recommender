@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
 import time
 
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class NBAClient:
     """Client for interacting with NBA stats API."""
@@ -115,7 +119,7 @@ class NBAClient:
             return games
 
         except Exception as e:
-            print(f"Error fetching scoreboard for {game_date}: {e}")
+            logger.error(f"Error fetching scoreboard for {game_date}: {e}")
             return []
 
     def _get_game_details(self, game_id: str) -> Optional[Dict]:
@@ -152,7 +156,7 @@ class NBAClient:
             }
 
         except Exception as e:
-            print(f"Error fetching game details for {game_id}: {e}")
+            logger.error(f"Error fetching game details for {game_id}: {e}")
             # Return defaults if API fails
             return {
                 'lead_changes': 0,
@@ -228,7 +232,7 @@ class NBAClient:
             return star_count
 
         except Exception as e:
-            print(f"Error fetching box score for {game_id}: {e}")
+            logger.error(f"Error fetching box score for {game_id}: {e}")
             return 0
 
     def _is_cache_valid(self) -> bool:
@@ -279,11 +283,12 @@ class NBAClient:
             sorted_teams = sorted(standings, key=lambda x: float(x[win_pct_idx]), reverse=True)
             top_5 = {team[team_abbr_idx].upper() for team in sorted_teams[:5]}
 
-            print(f"Dynamically fetched top 5 teams: {top_5}")
+            logger.info(f"Dynamically fetched top 5 teams: {top_5}")
             return top_5
 
         except Exception as e:
-            print(f"Error fetching top teams: {e}")
+            logger.error(f"Error fetching top teams: {e}")
+            logger.warning("Using fallback default top teams")
             # Fallback to a reasonable default
             return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
 
@@ -329,11 +334,12 @@ class NBAClient:
             # Get top 30 scorers
             star_players = {player[player_idx] for player in players[:30]}
 
-            print(f"Dynamically fetched {len(star_players)} star players")
+            logger.info(f"Dynamically fetched {len(star_players)} star players")
             return star_players
 
         except Exception as e:
-            print(f"Error fetching star players: {e}")
+            logger.error(f"Error fetching star players: {e}")
+            logger.warning("Using fallback default star players")
             # Fallback to a reasonable default
             return {
                 'LeBron James', 'Stephen Curry', 'Kevin Durant', 'Giannis Antetokounmpo',

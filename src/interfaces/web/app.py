@@ -10,7 +10,10 @@ import os
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.core.recommender import GameRecommender
+from src.utils.logger import get_logger
 import yaml
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 
@@ -36,11 +39,15 @@ def recommend():
         favorite_team = data.get('favorite_team')
         show_all = data.get('show_all', False)
 
+        logger.info(f"POST /recommend - days={days}, team={favorite_team}, show_all={show_all}")
+
         if days < 1 or days > 30:
+            logger.warning(f"Invalid days parameter: {days}")
             return jsonify({'error': 'Days must be between 1 and 30'}), 400
 
         if show_all:
             results = recommender.get_all_games_ranked(days=days, favorite_team=favorite_team)
+            logger.info(f"Returning {len(results)} ranked games")
             return jsonify({
                 'success': True,
                 'show_all': True,
@@ -51,8 +58,10 @@ def recommend():
             result = recommender.get_best_game(days=days, favorite_team=favorite_team)
 
             if not result:
+                logger.info("No games found for the given criteria")
                 return jsonify({'error': 'No games found'}), 404
 
+            logger.info("Best game recommendation returned successfully")
             return jsonify({
                 'success': True,
                 'show_all': False,
@@ -60,6 +69,7 @@ def recommend():
             })
 
     except Exception as e:
+        logger.error(f"Error in /recommend: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -76,7 +86,10 @@ def trmnl_webhook():
         days = int(request.args.get('days', 7))
         favorite_team = request.args.get('team', '').upper() or None
 
+        logger.info(f"GET /api/trmnl - days={days}, team={favorite_team}")
+
         if days < 1 or days > 14:
+            logger.warning(f"Invalid days parameter {days}, using default: 7")
             days = 7
 
         # Get the best game
@@ -125,8 +138,10 @@ def trmnl_webhook():
                 'breakdown': formatted_breakdown,
                 'updated_at': datetime.now().strftime('%I:%M %p')
             }
+            logger.info("TRMNL webhook returned game recommendation successfully")
         else:
             # No games found - return empty state
+            logger.warning(f"No games found for TRMNL webhook (days={days})")
             merge_variables = {
                 'game': None,
                 'score': '0',
@@ -141,6 +156,7 @@ def trmnl_webhook():
 
     except Exception as e:
         # Return error state for TRMNL display
+        logger.error(f"Error in /api/trmnl: {e}")
         return jsonify({
             'merge_variables': {
                 'game': None,
@@ -158,8 +174,8 @@ def main():
     host = web_config.get('host', '0.0.0.0')
     port = web_config.get('port', 8080)
 
-    print(f"🏀 NBA Game Recommender Web Interface starting on http://{host}:{port}")
-    print(f"Open your browser and navigate to http://localhost:{port}\n")
+    logger.info(f"🏀 NBA Game Recommender Web Interface starting on http://{host}:{port}")
+    logger.info(f"Open your browser and navigate to http://localhost:{port}")
 
     app.run(host=host, port=port, debug=True)
 
