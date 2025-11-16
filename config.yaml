@@ -2,7 +2,7 @@
 favorite_team: null  # Set to team abbreviation (e.g., "LAL", "BOS", "GSW") or leave null
 
 # Data Source Configuration
-data_source: "balldontlie"  # Options: "nba_stats" or "balldontlie"
+data_source: "nba_stats"
 
 # Scoring weights
 scoring:
