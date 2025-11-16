@@ -14,7 +14,8 @@ Find the most engaging NBA game to watch from the past week based on multiple cr
   - Star player participation
   - Favorite team bonus
 - **Configurable**: Customize scoring weights and preferences via `config.yaml`
-- **Real NBA Data**: Fetches actual game data from NBA Stats API
+- **Flexible Data Sources**: Choose between NBA Stats API or Balldontlie API
+- **Real NBA Data**: Fetches actual game data from official sources
 
 ## Installation
 
@@ -29,9 +30,18 @@ cd nba-most-engaging-game-of-the-week
 uv sync
 ```
 
-3. Configure your preferences (optional):
+3. Configure data source (optional):
 ```bash
-# Edit config.yaml to set your favorite team and adjust scoring weights
+# Copy .env.example to .env and add your API key if using Balldontlie
+cp .env.example .env
+
+# Edit .env and add your Balldontlie API key
+BALLDONTLIE_API_KEY=your-api-key-here
+```
+
+4. Configure your preferences (optional):
+```bash
+# Edit config.yaml to set your favorite team, data source, and adjust scoring weights
 ```
 
 ## Usage
@@ -119,6 +129,9 @@ Edit `config.yaml` to customize:
 ```yaml
 favorite_team: "LAL"  # Set your favorite team (3-letter code)
 
+# Data Source Configuration
+data_source: "balldontlie"  # Options: "nba_stats" or "balldontlie"
+
 scoring:
   lead_changes_weight: 10      # Points per lead change
   top5_team_bonus: 50          # Bonus for top 5 teams
@@ -127,6 +140,38 @@ scoring:
   star_power_weight: 20        # Points per star player
   favorite_team_bonus: 75      # Bonus if favorite team plays
 ```
+
+### Data Sources
+
+This application supports two NBA data sources:
+
+#### 1. NBA Stats API (Default - No API Key Required)
+```yaml
+data_source: "nba_stats"
+```
+- **Free**: No API key required
+- **Features**: Full game data including play-by-play for lead changes
+- **Limitations**: May be rate-limited, unofficial API
+- **Best for**: Development, testing, and free usage
+
+#### 2. Balldontlie API (Requires API Key)
+```yaml
+data_source: "balldontlie"
+```
+- **API Key Required**: Set `BALLDONTLIE_API_KEY` in `.env` file
+- **Features**: Official sports data API with comprehensive coverage
+- **Limitations**:
+  - Requires paid subscription for some features
+  - Lead changes not available (calculated as 0)
+- **Best for**: Production use with reliable data access
+- **Get API Key**: Visit [balldontlie.io](https://www.balldontlie.io/) to sign up
+
+To use Balldontlie API:
+1. Sign up at [balldontlie.io](https://www.balldontlie.io/)
+2. Get your API key from the dashboard
+3. Create a `.env` file (copy from `.env.example`)
+4. Add your API key: `BALLDONTLIE_API_KEY=your-key-here`
+5. Set `data_source: "balldontlie"` in `config.yaml`
 
 ## Scoring Criteria
 
@@ -164,7 +209,8 @@ nba-most-engaging-game-of-the-week/
 │   │   ├── game_scorer.py      # Scoring algorithm
 │   │   └── recommender.py      # Main recommendation engine
 │   ├── api/
-│   │   └── nba_client.py       # NBA API client
+│   │   ├── nba_client.py       # NBA Stats API client
+│   │   └── balldontlie_client.py # Balldontlie API client
 │   └── interfaces/
 │       ├── cli.py              # Command-line interface
 │       ├── api_server.py       # REST API server
@@ -183,6 +229,8 @@ nba-most-engaging-game-of-the-week/
 │   ├── .trmnlp.yml            # Local dev config
 │   └── README.md              # TRMNL setup guide
 ├── config.yaml                 # Configuration file
+├── .env                        # Environment variables (API keys)
+├── .env.example                # Example environment variables
 ├── pyproject.toml              # Python dependencies (uv)
 └── README.md
 ```

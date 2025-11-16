@@ -1,6 +1,7 @@
 """NBA Game Recommender Engine."""
 from typing import List, Dict, Optional
 from src.api.nba_client import NBAClient
+from src.api.balldontlie_client import BalldontlieClient
 from src.core.game_scorer import GameScorer
 import yaml
 
@@ -18,7 +19,16 @@ class GameRecommender:
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
-        self.nba_client = NBAClient()
+        # Determine which data source to use
+        data_source = self.config.get('data_source', 'nba_stats')
+
+        if data_source == 'balldontlie':
+            print("Using Balldontlie API as data source")
+            self.nba_client = BalldontlieClient()
+        else:
+            print("Using NBA Stats API as data source")
+            self.nba_client = NBAClient()
+
         self.scorer = GameScorer(self.config.get('scoring', {}))
         self.favorite_team = self.config.get('favorite_team')
 

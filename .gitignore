@@ -44,6 +44,10 @@ Thumbs.db
 # Local config overrides
 config.local.yaml
 
+# Environment variables
+.env
+.env.local
+
 # Logs
 *.log
 
