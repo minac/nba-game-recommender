@@ -60,20 +60,16 @@ curl "http://localhost:3000/api/best-game?days=7&team=LAL"
 ### Web Interface (localhost:8080)
 ```bash
 uv run python src/interfaces/web/app.py
-# Open http://localhost:8080
+open http://localhost:8080
 ```
 
 ### TRMNL Screen Viewer
 Preview TRMNL layouts before deploying. Start web server, then visit:
-```
-http://localhost:8080/trmnl-viewer
-```
+<http://localhost:8080/trmnl-viewer>
 
 ### TRMNL E-ink Display
 Deploy to Railway, then use endpoint:
-```
-https://your-app.railway.app/api/trmnl?days=7&team=LAL
-```
+<https://your-app.railway.app/api/trmnl?days=7&team=LAL>
 
 **See [trmnl/README.md](trmnl/README.md)** for complete TRMNL setup, layouts, and configuration.
 
@@ -98,16 +94,3 @@ railway login
 railway init
 railway up
 ```
-
-## Config
-
-Edit `config.yaml` for favorite team and scoring weights.
-
-## Requirements
-
-Python 3.11+ with [uv](https://github.com/astral-sh/uv)
-
-## Documentation
-
-- **[tests/README.md](tests/README.md)** - Testing commands, cache management, coverage reports
-- **[trmnl/README.md](trmnl/README.md)** - TRMNL e-ink display setup, layouts, URL parameters
