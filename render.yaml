@@ -10,3 +10,5 @@ services:
         value: 3.11.0
       - key: PORT
         generateValue: true
+      - key: BALLDONTLIE_API_KEY
+        sync: false  # This will be set manually in Render dashboard as a secret

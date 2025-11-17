@@ -1,5 +1,6 @@
 """NBA API Client for fetching game data."""
 import requests
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
 import time
@@ -7,6 +8,7 @@ import yaml
 
 from src.utils.logger import get_logger
 from src.utils.cache import DateBasedCache
+from src.api.balldontlie_client import BallDontLieClient
 
 logger = get_logger(__name__)
 
@@ -84,9 +86,11 @@ class NBAClient:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
                 cache_config = config.get('cache', {})
+                balldontlie_config = config.get('balldontlie', {})
         except Exception as e:
             logger.warning(f"Could not load config, using defaults: {e}")
             cache_config = {}
+            balldontlie_config = {}
 
         # Initialize date-based cache
         cache_enabled = cache_config.get('enabled', True)
@@ -105,6 +109,20 @@ class NBAClient:
             self.cache = None
             logger.info("Cache disabled")
 
+        # Initialize BallDontLie backup client
+        self.backup_client = None
+        if balldontlie_config.get('enabled', False):
+            # Try environment variable first, then fall back to config file (for backwards compatibility)
+            api_key = os.getenv('BALLDONTLIE_API_KEY') or balldontlie_config.get('api_key')
+            if api_key:
+                try:
+                    self.backup_client = BallDontLieClient(api_key)
+                    logger.info("BallDontLie backup client initialized")
+                except Exception as e:
+                    logger.error(f"Failed to initialize BallDontLie client: {e}")
+            else:
+                logger.warning("BallDontLie enabled but no API key provided. Set BALLDONTLIE_API_KEY environment variable.")
+
         # Cache for dynamic data (top teams and star players)
         self._top_teams_cache: Optional[Set[str]] = None
         self._star_players_cache: Optional[Set[str]] = None
@@ -113,6 +131,7 @@ class NBAClient:
     def get_games_last_n_days(self, days: int = 7) -> List[Dict]:
         """
         Fetch all completed games from the last N days.
+        Falls back to BallDontLie API if NBA Stats API fails.
 
         Args:
             days: Number of days to look back
@@ -120,20 +139,35 @@ class NBAClient:
         Returns:
             List of game dictionaries with detailed information
         """
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
 
-        games = []
-        current_date = start_date
+            games = []
+            current_date = start_date
 
-        while current_date <= end_date:
-            date_str = current_date.strftime('%Y-%m-%d')
-            daily_games = self._get_scoreboard(date_str)
-            games.extend(daily_games)
-            current_date += timedelta(days=1)
-            time.sleep(0.5)  # Rate limiting
+            while current_date <= end_date:
+                date_str = current_date.strftime('%Y-%m-%d')
+                daily_games = self._get_scoreboard(date_str)
+                games.extend(daily_games)
+                current_date += timedelta(days=1)
+                time.sleep(0.5)  # Rate limiting
 
-        return games
+            return games
+
+        except (NBAAPITimeoutError, NBAAPIError) as e:
+            logger.warning(f"NBA Stats API failed: {e}. Attempting fallback to BallDontLie...")
+            if self.backup_client:
+                try:
+                    games = self.backup_client.get_games_last_n_days(days)
+                    logger.info(f"Successfully retrieved {len(games)} games from BallDontLie backup")
+                    return games
+                except Exception as backup_error:
+                    logger.error(f"BallDontLie backup also failed: {backup_error}")
+                    raise NBAAPIError("Both primary and backup data sources failed") from backup_error
+            else:
+                logger.error("No backup client available")
+                raise
 
     def _get_scoreboard(self, game_date: str) -> List[Dict]:
         """
@@ -206,9 +240,12 @@ class NBAClient:
 
             return games
 
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.error(f"Timeout/Connection error fetching scoreboard for {game_date}: {e}")
+            raise NBAAPITimeoutError(f"Failed to fetch scoreboard for {game_date}") from e
         except Exception as e:
             logger.error(f"Error fetching scoreboard for {game_date}: {e}")
-            return []
+            raise NBAAPIError(f"Failed to fetch scoreboard for {game_date}") from e
 
     def _get_game_details(self, game_id: str) -> Optional[Dict]:
         """

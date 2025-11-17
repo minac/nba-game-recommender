@@ -28,3 +28,8 @@ cache:
   scoreboard_ttl_days: 30 # Cache scoreboards for 30 days (completed games don't change)
   game_details_ttl_days: 30 # Cache game details for 30 days
   auto_cleanup: true # Automatically remove expired cache on startup
+
+# BallDontLie API Configuration (backup data source)
+# Set BALLDONTLIE_API_KEY environment variable in Render secrets
+balldontlie:
+  enabled: true # Enable/disable BallDontLie as backup source
