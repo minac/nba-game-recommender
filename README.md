@@ -75,7 +75,7 @@ Endpoints:
 
 Example:
 ```bash
-curl "http://localhost:5000/api/best-game?days=7&team=BOS"
+curl "http://localhost:3000/api/best-game?days=7&team=BOS"
 ```
 
 ### Web Interface
