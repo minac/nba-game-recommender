@@ -78,6 +78,11 @@ class NBAClient:
         self._cache_timestamp: Optional[datetime] = None
         self.CACHE_DURATION = 86400  # 24 hours
 
+        # Rate limiting: Track API call timestamps per endpoint (sliding window)
+        self._api_call_timestamps: Dict[str, List[datetime]] = {}
+        self.API_RATE_LIMIT_WINDOW_SECONDS = 600  # 10 minutes
+        self.API_RATE_LIMIT_MAX_CALLS = 120  # Max calls per 10-minute window
+
     def get_games_last_n_days(self, days: int = 7) -> List[Dict]:
         """
         Fetch all completed games from the last N days.
@@ -119,9 +124,20 @@ class NBAClient:
         if self.cache:
             cached_games = self.cache.get_scoreboard(game_date, ttl_days=self.scoreboard_ttl_days)
             if cached_games is not None:
+                # If we have cached data and we're rate limited, return cached data
+                if self._is_rate_limited('scoreboard'):
+                    stats = self._get_rate_limit_stats('scoreboard')
+                    logger.info(f"Rate limited ({stats['calls_made']}/{stats['max_calls']} calls used). Returning cached scoreboard data for {game_date}.")
                 return cached_games
 
-        # Cache miss - fetch from API with retry logic for rate limiting
+        # Check rate limiting before making API call
+        if self._is_rate_limited('scoreboard'):
+            stats = self._get_rate_limit_stats('scoreboard')
+            logger.warning(f"Rate limited ({stats['calls_made']}/{stats['max_calls']} calls used, window resets at {stats['window_resets_at']}) and no cached data available for {game_date}.")
+            # Return empty list if no cache and rate limited
+            return []
+
+        # Not rate limited - fetch from API with retry logic
         max_retries = 3
         retry_delay = 2  # Initial retry delay in seconds
 
@@ -188,6 +204,9 @@ class NBAClient:
                 if self.cache and games:
                     self.cache.set_scoreboard(game_date, games)
 
+                # Update rate limit timestamp after successful API call
+                self._update_rate_limit_timestamp('scoreboard')
+
                 return games
 
             except requests.exceptions.HTTPError as e:
@@ -212,6 +231,87 @@ class NBAClient:
         elapsed = (datetime.now() - self._cache_timestamp).total_seconds()
         return elapsed < self.CACHE_DURATION
 
+    def _clean_old_timestamps(self, endpoint_key: str) -> None:
+        """
+        Remove timestamps older than the rate limit window.
+
+        Args:
+            endpoint_key: Identifier for the endpoint
+        """
+        if endpoint_key not in self._api_call_timestamps:
+            return
+
+        now = datetime.now()
+        cutoff_time = now - timedelta(seconds=self.API_RATE_LIMIT_WINDOW_SECONDS)
+
+        # Keep only timestamps within the window
+        self._api_call_timestamps[endpoint_key] = [
+            ts for ts in self._api_call_timestamps[endpoint_key]
+            if ts > cutoff_time
+        ]
+
+    def _is_rate_limited(self, endpoint_key: str) -> bool:
+        """
+        Check if we're rate limited for a specific endpoint using sliding window.
+
+        Args:
+            endpoint_key: Identifier for the endpoint (e.g., 'scoreboard', 'standings', 'leaders')
+
+        Returns:
+            True if rate limited (120 calls in last 10 minutes), False otherwise
+        """
+        # Clean up old timestamps first
+        self._clean_old_timestamps(endpoint_key)
+
+        # Check if we've hit the limit
+        if endpoint_key not in self._api_call_timestamps:
+            return False
+
+        call_count = len(self._api_call_timestamps[endpoint_key])
+        return call_count >= self.API_RATE_LIMIT_MAX_CALLS
+
+    def _update_rate_limit_timestamp(self, endpoint_key: str) -> None:
+        """Add current timestamp to the rate limit tracker."""
+        if endpoint_key not in self._api_call_timestamps:
+            self._api_call_timestamps[endpoint_key] = []
+
+        self._api_call_timestamps[endpoint_key].append(datetime.now())
+
+    def _get_rate_limit_stats(self, endpoint_key: str) -> Dict[str, any]:
+        """
+        Get rate limit statistics for an endpoint.
+
+        Args:
+            endpoint_key: Identifier for the endpoint
+
+        Returns:
+            Dictionary with rate limit stats (calls_made, calls_remaining, window_resets_at)
+        """
+        self._clean_old_timestamps(endpoint_key)
+
+        calls_made = 0
+        oldest_timestamp = None
+
+        if endpoint_key in self._api_call_timestamps:
+            calls_made = len(self._api_call_timestamps[endpoint_key])
+            if calls_made > 0:
+                oldest_timestamp = min(self._api_call_timestamps[endpoint_key])
+
+        calls_remaining = max(0, self.API_RATE_LIMIT_MAX_CALLS - calls_made)
+
+        # Calculate when the window resets (when oldest call expires)
+        window_resets_at = None
+        if oldest_timestamp:
+            window_resets_at = oldest_timestamp + timedelta(seconds=self.API_RATE_LIMIT_WINDOW_SECONDS)
+
+        return {
+            'calls_made': calls_made,
+            'calls_remaining': calls_remaining,
+            'max_calls': self.API_RATE_LIMIT_MAX_CALLS,
+            'window_seconds': self.API_RATE_LIMIT_WINDOW_SECONDS,
+            'window_resets_at': window_resets_at.isoformat() if window_resets_at else None
+        }
+
     def _fetch_top_teams(self) -> Set[str]:
         """
         Get top 5 teams based on current standings from Ball Don't Lie API.
@@ -219,6 +319,16 @@ class NBAClient:
         Returns:
             Set of team abbreviations for top 5 teams
         """
+        # Check rate limiting before making API call
+        if self._is_rate_limited('standings'):
+            stats = self._get_rate_limit_stats('standings')
+            logger.info(f"Rate limited ({stats['calls_made']}/{stats['max_calls']} calls used). Returning cached top teams.")
+            # Return cached data if available, otherwise use fallback
+            if self._top_teams_cache is not None:
+                return self._top_teams_cache
+            logger.warning(f"No cached data available, using fallback defaults. Window resets at {stats['window_resets_at']}")
+            return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
+
         max_retries = 3
         retry_delay = 2
 
@@ -255,6 +365,10 @@ class NBAClient:
                 top_5 = {team['team']['abbreviation'] for team in sorted_teams[:5]}
 
                 logger.info(f"Fetched top 5 teams from standings: {top_5}")
+
+                # Update rate limit timestamp after successful API call
+                self._update_rate_limit_timestamp('standings')
+
                 return top_5
 
             except Exception as e:
@@ -278,6 +392,22 @@ class NBAClient:
         Returns:
             Set of star player names (top 30 scorers)
         """
+        # Check rate limiting before making API call
+        if self._is_rate_limited('leaders'):
+            stats = self._get_rate_limit_stats('leaders')
+            logger.info(f"Rate limited ({stats['calls_made']}/{stats['max_calls']} calls used). Returning cached star players.")
+            # Return cached data if available, otherwise use fallback
+            if self._star_players_cache is not None:
+                return self._star_players_cache
+            logger.warning(f"No cached data available, using fallback defaults. Window resets at {stats['window_resets_at']}")
+            return {
+                'LeBron James', 'Stephen Curry', 'Kevin Durant', 'Giannis Antetokounmpo',
+                'Luka Doncic', 'Nikola Jokic', 'Joel Embiid', 'Jayson Tatum',
+                'Damian Lillard', 'Anthony Davis', 'Devin Booker', 'Kawhi Leonard',
+                'Jimmy Butler', 'Donovan Mitchell', 'Trae Young', 'Kyrie Irving',
+                'Shai Gilgeous-Alexander', 'Anthony Edwards', 'Tyrese Haliburton'
+            }
+
         max_retries = 3
         retry_delay = 2
 
@@ -323,6 +453,10 @@ class NBAClient:
                         star_players.add(full_name)
 
                 logger.info(f"Fetched {len(star_players)} star players from season leaders")
+
+                # Update rate limit timestamp after successful API call
+                self._update_rate_limit_timestamp('leaders')
+
                 return star_players
 
             except Exception as e:
