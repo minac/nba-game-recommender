@@ -110,6 +110,67 @@ class NBAClient:
 
         return games
 
+    def _get_game_star_players_count(self, game_id: str) -> int:
+        """
+        Get count of star players who played in a specific game.
+
+        Args:
+            game_id: The game ID
+
+        Returns:
+            Count of star players in the game
+        """
+        # Check rate limiting before making API call
+        if self._is_rate_limited('stats'):
+            stats = self._get_rate_limit_stats('stats')
+            logger.info(f"Rate limited for stats endpoint ({stats['calls_made']}/{stats['max_calls']} calls used). Skipping star player count for game {game_id}.")
+            return 0
+
+        try:
+            url = f"{self.BASE_URL}/stats"
+            params = {
+                'game_ids[]': game_id,
+                'per_page': 100  # Max allowed
+            }
+
+            logger.debug(f"Fetching player stats for game {game_id}...")
+            response = self.session.get(url, params=params, timeout=10)
+
+            # Handle rate limiting gracefully
+            if response.status_code == 429:
+                logger.warning(f"Rate limited while fetching stats for game {game_id}, returning 0")
+                return 0
+
+            response.raise_for_status()
+            data = response.json()
+
+            # Update rate limit timestamp after successful API call
+            self._update_rate_limit_timestamp('stats')
+
+            # Get unique player names from the stats
+            players_in_game = set()
+            for stat in data.get('data', []):
+                player = stat.get('player', {})
+                first_name = player.get('first_name', '')
+                last_name = player.get('last_name', '')
+                full_name = f"{first_name} {last_name}".strip()
+                if full_name:
+                    players_in_game.add(full_name)
+
+            # Count how many are star players
+            star_players = self.STAR_PLAYERS
+            star_count = len(players_in_game & star_players)
+
+            if star_count > 0:
+                logger.info(f"Game {game_id} has {star_count} star player(s): {players_in_game & star_players}")
+
+            return star_count
+
+        except Exception as e:
+            logger.warning(f"Error fetching star players count for game {game_id}: {e}")
+            # Return 0 on error to not break the flow
+            return 0
+
     def _get_scoreboard(self, game_date: str) -> List[Dict]:
         """
         Get scoreboard for a specific date.
@@ -177,9 +238,13 @@ class NBAClient:
                     visitor_team = game.get('visitor_team', {})
                     home_score = game.get('home_team_score', 0)
                     visitor_score = game.get('visitor_team_score', 0)
+                    game_id = str(game.get('id'))
+
+                    # Fetch star players count for this game
+                    star_players_count = self._get_game_star_players_count(game_id)
 
                     game_info = {
-                        'game_id': str(game.get('id')),
+                        'game_id': game_id,
                         'game_date': game_date,
                         'home_team': {
                             'name': home_team.get('full_name'),
@@ -195,10 +260,14 @@ class NBAClient:
                         'final_margin': abs(home_score - visitor_score),
                         # Note: Ball Don't Lie doesn't provide play-by-play data
                         # so we can't calculate actual lead changes
-                        'star_players_count': 0  # Will be populated if needed
+                        'star_players_count': star_players_count
                     }
 
                     games.append(game_info)
+
+                    # Small delay between stats requests to avoid rate limiting
+                    if star_players_count > 0:
+                        time.sleep(0.5)
 
                 # Store in cache
                 if self.cache and games:
