@@ -1,0 +1,42 @@
+name: CD - Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    # Only run on merged PRs or direct pushes to main (not on PR branches)
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger Render Deployment
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "⚠️  RENDER_DEPLOY_HOOK_URL secret is not set"
+            echo "Please add your Render Deploy Hook URL as a GitHub secret"
+            echo "Get it from: Render Dashboard > Your Service > Settings > Deploy Hook"
+            exit 1
+          fi
+
+          echo "🚀 Triggering deployment to Render..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+
+          if [ "$response" -eq 200 ] || [ "$response" -eq 201 ]; then
+            echo "✅ Deployment triggered successfully!"
+          else
+            echo "❌ Deployment trigger failed with status code: $response"
+            exit 1
+          fi
+
+      - name: Deployment Status
+        run: |
+          echo "🎉 Deployment has been triggered on Render"
+          echo "Check the deployment status at: https://dashboard.render.com/"
