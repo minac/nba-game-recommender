@@ -94,8 +94,3 @@ railway login
 railway init
 railway up
 ```
-
-## Documentation
-
-- **[tests/README.md](tests/README.md)** - Testing commands, cache management, coverage reports
-- **[trmnl/README.md](trmnl/README.md)** - TRMNL e-ink display setup, layouts, URL parameters
