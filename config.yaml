@@ -6,6 +6,7 @@ scoring:
   top5_team_bonus: 20 # Bonus if top 5 team plays
   close_game_bonus: 50 # Max bonus for close games (based on final margin)
   min_total_points: 200 # Minimum total points threshold
+  high_score_bonus: 10 # Bonus for games with 200+ total points
   star_power_weight: 20 # Points per star player
   favorite_team_bonus: 40 # Bonus if favorite team plays
 

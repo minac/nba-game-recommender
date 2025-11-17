@@ -18,6 +18,7 @@ class TestGameScorer:
         assert scorer.top5_team_bonus == 50
         assert scorer.close_game_bonus == 100
         assert scorer.min_total_points == 200
+        assert scorer.high_score_bonus == 10
         assert scorer.star_power_weight == 20
         assert scorer.favorite_team_bonus == 75
 
@@ -27,6 +28,7 @@ class TestGameScorer:
             'top5_team_bonus': 60,
             'close_game_bonus': 120,
             'min_total_points': 180,
+            'high_score_bonus': 15,
             'star_power_weight': 25,
             'favorite_team_bonus': 80
         }
@@ -34,6 +36,7 @@ class TestGameScorer:
         assert scorer.top5_team_bonus == 60
         assert scorer.close_game_bonus == 120
         assert scorer.min_total_points == 180
+        assert scorer.high_score_bonus == 15
         assert scorer.star_power_weight == 25
         assert scorer.favorite_team_bonus == 80
 
@@ -113,16 +116,16 @@ class TestGameScorer:
         assert result['breakdown']['close_game']['points'] == 0
 
     def test_total_points_above_threshold(self):
-        """Test that games above point threshold are not penalized."""
+        """Test that games above point threshold get bonus points."""
         game = get_sample_game(home_score=110, away_score=108)  # 218 total
         result = self.scorer.score_game(game)
 
         assert result['breakdown']['total_points']['total'] == 218
         assert result['breakdown']['total_points']['threshold_met'] is True
-        assert 'penalty_applied' not in result['breakdown']['total_points']
+        assert result['breakdown']['total_points']['points'] == 10
 
     def test_total_points_below_threshold(self):
-        """Test that games below point threshold are heavily penalized."""
+        """Test that games below point threshold get no bonus points."""
         game = get_sample_game(
             home_score=85,
             away_score=90,
@@ -132,19 +135,18 @@ class TestGameScorer:
 
         assert result['breakdown']['total_points']['total'] == 175
         assert result['breakdown']['total_points']['threshold_met'] is False
-        assert result['breakdown']['total_points']['penalty_applied'] is True
-        # Score should be reduced by 90%, but star power is added after penalty
-        # (80 close) * 0.1 + 40 star = 8 + 40 = 48
-        assert result['score'] == 48.0
+        assert result['breakdown']['total_points']['points'] == 0
+        # Score includes close game bonus (80) + star power (40) + no high score bonus (0)
+        assert result['score'] == 120.0
 
     def test_total_points_exactly_at_threshold(self):
-        """Test games exactly at threshold are not penalized."""
+        """Test games exactly at threshold get bonus points."""
         game = get_sample_game(home_score=100, away_score=100)  # Exactly 200
         result = self.scorer.score_game(game)
 
         assert result['breakdown']['total_points']['total'] == 200
         assert result['breakdown']['total_points']['threshold_met'] is True
-        assert 'penalty_applied' not in result['breakdown']['total_points']
+        assert result['breakdown']['total_points']['points'] == 10
 
     def test_star_power_scoring(self):
         """Test that star players are scored correctly."""
@@ -213,11 +215,12 @@ class TestGameScorer:
         # Verify individual components
         assert result['breakdown']['top5_teams']['points'] == 100  # 2 * 50
         assert result['breakdown']['close_game']['points'] == 100  # 3pt margin
+        assert result['breakdown']['total_points']['points'] == 10  # 233 total >= 200
         assert result['breakdown']['star_power']['points'] == 120  # 6 * 20
         assert result['breakdown']['favorite_team']['points'] == 75
 
-        # Total should be sum of all components (no lead_changes)
-        expected_score = 100 + 100 + 120 + 75
+        # Total should be sum of all components
+        expected_score = 100 + 100 + 10 + 120 + 75
         assert result['score'] == expected_score
 
     def test_comprehensive_low_score_game(self):
@@ -234,11 +237,11 @@ class TestGameScorer:
         # Low score due to blowout, no stars, no top5 teams, below point threshold
         assert result['breakdown']['top5_teams']['points'] == 0
         assert result['breakdown']['close_game']['points'] == 0  # 20pt margin
+        assert result['breakdown']['total_points']['points'] == 0  # 170 total < 200
         assert result['breakdown']['star_power']['points'] == 0
         assert result['breakdown']['favorite_team']['points'] == 0
-        assert result['breakdown']['total_points']['penalty_applied'] is True
 
-        # Should be heavily penalized due to low total points (0 score after penalty)
+        # Score is 0 (no bonuses applied)
         assert result['score'] == 0
 
     def test_score_rounded_to_two_decimals(self):
@@ -266,18 +269,19 @@ class TestGameScorer:
         assert 'star_power' in result['breakdown']
         assert 'favorite_team' in result['breakdown']
 
-    def test_penalty_calculation_precision(self):
-        """Test that the 90% penalty is calculated correctly."""
-        # Create a game that would score 100 before penalty (not counting star/favorite)
+    def test_high_score_bonus_calculation(self):
+        """Test that the high score bonus is calculated correctly."""
+        # Create a game with exactly 200 points (threshold)
         game = get_sample_game(
-            home_score=85,
-            away_score=85,  # Below 200 threshold, 0 margin = 100 close bonus
+            home_score=100,
+            away_score=100,  # Exactly 200 total points, 0 margin = 100 close bonus
             star_players=0
         )
         result = self.scorer.score_game(game)
 
-        # (100 close) * 0.1 (90% penalty) = 10
-        assert result['score'] == 10.0
+        # 100 (close) + 10 (high score bonus) = 110
+        assert result['score'] == 110.0
+        assert result['breakdown']['total_points']['points'] == 10
 
     def test_margin_calculation_uses_absolute_value(self):
         """Test that margin is calculated correctly regardless of which team won."""

@@ -15,6 +15,7 @@ class GameScorer:
         self.top5_team_bonus = config.get('top5_team_bonus', 50)
         self.close_game_bonus = config.get('close_game_bonus', 100)
         self.min_total_points = config.get('min_total_points', 200)
+        self.high_score_bonus = config.get('high_score_bonus', 10)
         self.star_power_weight = config.get('star_power_weight', 20)
         self.favorite_team_bonus = config.get('favorite_team_bonus', 75)
 
@@ -73,18 +74,16 @@ class GameScorer:
             'points': close_score
         }
 
-        # Criterion 3: Minimum total points (200+)
+        # Criterion 3: High scoring game bonus (200+)
         total_points = game.get('total_points', 0)
         meets_threshold = total_points >= self.min_total_points
+        high_score_points = self.high_score_bonus if meets_threshold else 0
+        score += high_score_points
         breakdown['total_points'] = {
             'total': total_points,
-            'threshold_met': meets_threshold
+            'threshold_met': meets_threshold,
+            'points': high_score_points
         }
-
-        # If game doesn't meet minimum points threshold, heavily penalize
-        if not meets_threshold:
-            score *= 0.1  # 90% penalty
-            breakdown['total_points']['penalty_applied'] = True
 
         # Criterion 4: Star power
         star_count = game.get('star_players_count', 0)
