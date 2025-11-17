@@ -286,10 +286,16 @@ class TestNBAClient:
         """Test _get_star_players_count when no star players played."""
         boxscore_data = {
             'boxScoreTraditional': {
-                'players': [
-                    {'firstName': 'Regular', 'familyName': 'Player 1', 'points': 10},
-                    {'firstName': 'Regular', 'familyName': 'Player 2', 'points': 12},
-                ]
+                'homeTeam': {
+                    'players': [
+                        {'firstName': 'Regular', 'familyName': 'Player 1', 'points': 10},
+                    ]
+                },
+                'awayTeam': {
+                    'players': [
+                        {'firstName': 'Regular', 'familyName': 'Player 2', 'points': 12},
+                    ]
+                }
             }
         }
         responses.add(

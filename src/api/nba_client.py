@@ -230,19 +230,21 @@ class NBAClient:
             data = response.json()
 
             star_count = 0
-            players = data.get('boxScoreTraditional', {}).get('players', [])
+            box_score = data.get('boxScoreTraditional', {})
 
-            # Debug: Log the first player to see available fields
-            if players:
-                logger.debug(f"First player fields: {list(players[0].keys())}")
+            # Players are nested under homeTeam and awayTeam in v3 API
+            home_players = box_score.get('homeTeam', {}).get('players', [])
+            away_players = box_score.get('awayTeam', {}).get('players', [])
+            all_players = home_players + away_players
 
-            for player in players:
+            logger.debug(f"Found {len(home_players)} home players and {len(away_players)} away players")
+
+            for player in all_players:
                 # NBA Stats API v3 uses firstName and familyName fields, not a single 'name' field
                 first_name = player.get('firstName', '')
                 family_name = player.get('familyName', '')
                 player_name = f"{first_name} {family_name}".strip()
 
-                logger.debug(f"Checking player: '{player_name}' against star players")
                 if player_name in self.STAR_PLAYERS:
                     star_count += 1
                     logger.debug(f"Found star player: {player_name}")

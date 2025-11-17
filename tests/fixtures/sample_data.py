@@ -115,11 +115,17 @@ def get_sample_boxscore_response():
     """Get sample box score response with star players."""
     return {
         'boxScoreTraditional': {
-            'players': [
-                {'firstName': 'LeBron', 'familyName': 'James', 'points': 28},
-                {'firstName': 'Jayson', 'familyName': 'Tatum', 'points': 32},
-                {'firstName': 'Anthony', 'familyName': 'Davis', 'points': 18},
-                {'firstName': 'Regular', 'familyName': 'Player', 'points': 10},
-            ]
+            'homeTeam': {
+                'players': [
+                    {'firstName': 'LeBron', 'familyName': 'James', 'points': 28},
+                    {'firstName': 'Anthony', 'familyName': 'Davis', 'points': 18},
+                ]
+            },
+            'awayTeam': {
+                'players': [
+                    {'firstName': 'Jayson', 'familyName': 'Tatum', 'points': 32},
+                    {'firstName': 'Regular', 'familyName': 'Player', 'points': 10},
+                ]
+            }
         }
     }
