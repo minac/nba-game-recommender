@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.core.recommender import GameRecommender
+from src.services.game_service import GameService
 from src.utils.logger import get_logger
 import yaml
 
@@ -19,7 +20,10 @@ app = Flask(__name__)
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
+# Create recommender (can be mocked by tests)
 recommender = GameRecommender()
+# Use the shared game service with the recommender
+game_service = GameService(recommender=recommender)
 
 
 @app.route('/api/health', methods=['GET'])
@@ -40,31 +44,26 @@ def get_best_game():
     Returns:
         JSON with best game and score breakdown
     """
-    try:
-        days = int(request.args.get('days', 7))
-        favorite_team = request.args.get('team')
+    days = request.args.get('days', 7)
+    favorite_team = request.args.get('team')
 
-        logger.info(f"GET /api/best-game - days={days}, team={favorite_team}")
+    logger.info(f"GET /api/best-game - days={days}, team={favorite_team}")
 
-        if days < 1 or days > 30:
-            logger.warning(f"Invalid days parameter: {days}")
-            return jsonify({'error': 'Days must be between 1 and 30'}), 400
+    # Use shared service (handles validation and error handling)
+    response = game_service.get_best_game(days=days, favorite_team=favorite_team)
 
-        result = recommender.get_best_game(days=days, favorite_team=favorite_team)
+    # Return appropriate HTTP status code
+    if not response['success']:
+        error_code = response.get('error_code')
+        if error_code == 'VALIDATION_ERROR':
+            return jsonify(response), 400
+        elif error_code == 'NO_GAMES':
+            return jsonify(response), 404
+        else:
+            return jsonify(response), 500
 
-        if not result:
-            logger.info("No games found for the given criteria")
-            return jsonify({'error': 'No games found'}), 404
-
-        logger.info("Best game recommendation returned successfully")
-        return jsonify({
-            'success': True,
-            'data': result
-        })
-
-    except Exception as e:
-        logger.error(f"Error in /api/best-game: {e}")
-        return jsonify({'error': str(e)}), 500
+    logger.info("Best game recommendation returned successfully")
+    return jsonify(response)
 
 
 @app.route('/api/games', methods=['GET'])
@@ -79,28 +78,26 @@ def get_all_games():
     Returns:
         JSON with all games ranked by score
     """
-    try:
-        days = int(request.args.get('days', 7))
-        favorite_team = request.args.get('team')
+    days = request.args.get('days', 7)
+    favorite_team = request.args.get('team')
 
-        logger.info(f"GET /api/games - days={days}, team={favorite_team}")
+    logger.info(f"GET /api/games - days={days}, team={favorite_team}")
 
-        if days < 1 or days > 30:
-            logger.warning(f"Invalid days parameter: {days}")
-            return jsonify({'error': 'Days must be between 1 and 30'}), 400
+    # Use shared service (handles validation and error handling)
+    response = game_service.get_all_games_ranked(days=days, favorite_team=favorite_team)
 
-        results = recommender.get_all_games_ranked(days=days, favorite_team=favorite_team)
+    # Return appropriate HTTP status code
+    if not response['success']:
+        error_code = response.get('error_code')
+        if error_code == 'VALIDATION_ERROR':
+            return jsonify(response), 400
+        elif error_code == 'NO_GAMES':
+            return jsonify(response), 404
+        else:
+            return jsonify(response), 500
 
-        logger.info(f"Returning {len(results)} ranked games")
-        return jsonify({
-            'success': True,
-            'count': len(results),
-            'data': results
-        })
-
-    except Exception as e:
-        logger.error(f"Error in /api/games: {e}")
-        return jsonify({'error': str(e)}), 500
+    logger.info(f"Returning {response['count']} ranked games")
+    return jsonify(response)
 
 
 @app.route('/api/config', methods=['GET'])

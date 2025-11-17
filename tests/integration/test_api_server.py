@@ -25,7 +25,9 @@ class TestAPIServer:
     def mock_recommender(self):
         """Mock the recommender instance."""
         with patch('src.interfaces.api_server.recommender') as mock:
-            yield mock
+            # Also patch the game_service's recommender to use the same mock
+            with patch('src.interfaces.api_server.game_service.recommender', mock):
+                yield mock
 
     def test_health_endpoint(self, client):
         """Test health check endpoint returns ok status."""
@@ -319,6 +321,6 @@ class TestAPIServer:
         """Test days parameter with invalid format returns error."""
         response = client.get('/api/best-game?days=invalid')
 
-        assert response.status_code == 500  # Will raise ValueError during int()
+        assert response.status_code == 400  # Validation error returns 400
         data = response.get_json()
         assert 'error' in data
