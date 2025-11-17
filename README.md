@@ -20,7 +20,7 @@ Find the most engaging NBA game to watch from the past week based on multiple cr
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/minac/nba-most-engaging-game-of-the-week.git
 cd nba-most-engaging-game-of-the-week
 ```
 
