@@ -7,8 +7,8 @@ This directory contains the CI/CD workflows for the NBA Game Recommender project
 ### 1. CI - Run Tests (`ci.yml`)
 
 **Triggers:**
-- Pull requests to `main` or `master` branches
-- Direct pushes to `main` or `master` branches
+- Pull requests to `main` branch
+- Direct pushes to `main` branch
 
 **What it does:**
 - Sets up Python 3.11
@@ -21,7 +21,7 @@ This directory contains the CI/CD workflows for the NBA Game Recommender project
 ### 2. CD - Deploy to Render (`cd.yml`)
 
 **Triggers:**
-- Pushes to `main` or `master` branches (typically after PR merge)
+- Pushes to `main` branch (typically after PR merge)
 
 **What it does:**
 - Triggers an automatic deployment to Render

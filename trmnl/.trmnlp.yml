@@ -3,7 +3,7 @@
 
 # Plugin metadata
 plugin_name: NBA Game Recommender
-author: Your Name
+author: Miguel David
 version: 1.0.0
 
 # Watch these paths for changes (auto-reload)
@@ -12,7 +12,7 @@ watch:
   - src/settings.yml
 
 # Timezone for time-based variables
-timezone: America/New_York
+timezone: Europe/Brussels
 
 # Sample data for local development
 # These variables will be available in your templates when running locally
@@ -51,7 +51,6 @@ variables:
       points: "75.0"
 
   updated_at: "2025-01-15 14:30"
-
 # Alternative sample data for testing empty state
 # Uncomment to test the "no games" scenario
 # variables:

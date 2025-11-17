@@ -7,7 +7,7 @@ scoring:
   close_game_bonus: 50 # Max bonus for close games (based on final margin)
   min_total_points: 200 # Minimum total points threshold
   star_power_weight: 20 # Points per star player
-  favorite_team_bonus: 100 # Bonus if favorite team plays
+  favorite_team_bonus: 40 # Bonus if favorite team plays
 
 # API Configuration
 api:

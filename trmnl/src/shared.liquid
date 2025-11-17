@@ -1,26 +1,4 @@
-<!-- Shared styles and components for TRMNL NBA Game Recommender Plugin -->
-
-<!-- Shared Basketball Icon Component -->
-{% template basketball_icon %}
-<div class="basketball-icon">🏀</div>
-{% endtemplate %}
-
-<!-- Shared Team Score Component -->
-{% template team_score, team_name: "", team_abbr: "", score: 0 %}
-<div class="team-score-component">
-  <div class="team-name">{{ team_name }}</div>
-  <div class="team-abbr">{{ team_abbr }}</div>
-  <div class="score">{{ score }}</div>
-</div>
-{% endtemplate %}
-
-<!-- Shared Empty State Component -->
-{% template empty_state, message: "No data available" %}
-<div class="empty-state-component">
-  <div class="empty-icon">🏀</div>
-  <div class="empty-message">{{ message }}</div>
-</div>
-{% endtemplate %}
+<!-- Shared styles for TRMNL NBA Game Recommender Plugin -->
 
 <!-- Global Shared Styles -->
 <style>
@@ -75,49 +53,4 @@
   .p-2 { padding: 0.6rem; }
   .p-3 { padding: 1rem; }
 
-  /* Component Styles - Optimized for e-ink display */
-  .basketball-icon {
-    font-size: 1.5rem;
-    text-align: center;
-  }
-
-  .team-score-component {
-    text-align: center;
-  }
-
-  .team-score-component .team-name {
-    font-weight: 600;
-    margin-bottom: 0.2rem;
-    font-size: 0.9em;
-  }
-
-  .team-score-component .team-abbr {
-    font-size: 0.75em;
-    opacity: 0.7;
-    margin-bottom: 0.3rem;
-  }
-
-  .team-score-component .score {
-    font-size: 1.5em;
-    font-weight: bold;
-  }
-
-  .empty-state-component {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
-
-  .empty-state-component .empty-icon {
-    font-size: 2rem;
-    margin-bottom: 0.6rem;
-  }
-
-  .empty-state-component .empty-message {
-    font-size: 1rem;
-    font-weight: 600;
-    opacity: 0.6;
-  }
 </style>

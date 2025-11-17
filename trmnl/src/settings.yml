@@ -3,7 +3,7 @@
 
 plugin_name: NBA Game Recommender
 description: Shows the most engaging NBA game from the past week
-author: Your Name
+author: Miguel David
 version: 1.0.0
 
 # Plugin configuration
@@ -30,7 +30,7 @@ settings:
     required: true
 
 # Refresh settings
-refresh_interval: 3600  # Refresh every hour (in seconds)
+refresh_interval: 3600 # Refresh every hour (in seconds)
 
 # Screen sizes supported
 layouts:
