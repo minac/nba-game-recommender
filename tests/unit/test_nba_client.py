@@ -2,7 +2,8 @@
 import pytest
 import responses
 from datetime import datetime, timedelta
-from src.api.nba_client import NBAClient
+from unittest.mock import Mock, patch
+from src.api.nba_client import NBAClient, NBAAPITimeoutError, NBAAPIError
 from tests.fixtures.sample_data import (
     get_sample_playbyplay_response,
 )
@@ -243,3 +244,88 @@ class TestNBAClient:
             assert 'game_id' in game
             assert 'home_team' in game
             assert 'away_team' in game
+
+
+class TestBallDontLieFallback:
+    """Test suite for BallDontLie fallback functionality."""
+
+    @patch('src.api.nba_client.BallDontLieClient')
+    def test_fallback_on_timeout(self, mock_balldontlie_class):
+        """Test that BallDontLie is used when NBA API times out."""
+        # Setup mock BallDontLie client
+        mock_backup_client = Mock()
+        mock_backup_client.get_games_last_n_days.return_value = [
+            {
+                'game_id': 'bdl123',
+                'home_team': {'abbr': 'LAL', 'score': 100},
+                'away_team': {'abbr': 'BOS', 'score': 98}
+            }
+        ]
+        mock_balldontlie_class.return_value = mock_backup_client
+
+        # Create config that enables BallDontLie
+        with patch('builtins.open', create=True) as mock_open:
+            mock_open.return_value.__enter__.return_value.read.return_value = """
+balldontlie:
+  enabled: true
+  api_key: test_key
+"""
+            client = NBAClient()
+            client.backup_client = mock_backup_client
+
+        # Mock NBA API to raise timeout
+        with patch.object(client, '_get_scoreboard', side_effect=NBAAPITimeoutError("Timeout")):
+            games = client.get_games_last_n_days(days=1)
+
+        # Should have called backup client
+        mock_backup_client.get_games_last_n_days.assert_called_once_with(1)
+        assert len(games) == 1
+        assert games[0]['game_id'] == 'bdl123'
+
+    @patch('src.api.nba_client.BallDontLieClient')
+    def test_no_fallback_when_disabled(self, mock_balldontlie_class):
+        """Test that fallback doesn't happen when BallDontLie is disabled."""
+        client = NBAClient()
+        client.backup_client = None
+
+        # Mock NBA API to raise timeout
+        with patch.object(client, '_get_scoreboard', side_effect=NBAAPITimeoutError("Timeout")):
+            with pytest.raises(NBAAPITimeoutError):
+                client.get_games_last_n_days(days=1)
+
+    @patch('src.api.nba_client.BallDontLieClient')
+    def test_fallback_on_general_api_error(self, mock_balldontlie_class):
+        """Test that BallDontLie is used on general NBA API errors."""
+        # Setup mock BallDontLie client
+        mock_backup_client = Mock()
+        mock_backup_client.get_games_last_n_days.return_value = [
+            {'game_id': 'bdl456', 'home_team': {'abbr': 'GSW'}}
+        ]
+
+        client = NBAClient()
+        client.backup_client = mock_backup_client
+
+        # Mock NBA API to raise generic error
+        with patch.object(client, '_get_scoreboard', side_effect=NBAAPIError("API Error")):
+            games = client.get_games_last_n_days(days=1)
+
+        # Should have used backup
+        mock_backup_client.get_games_last_n_days.assert_called_once()
+        assert len(games) == 1
+
+    @patch('src.api.nba_client.BallDontLieClient')
+    def test_both_sources_fail(self, mock_balldontlie_class):
+        """Test error handling when both primary and backup sources fail."""
+        # Setup mock BallDontLie client that also fails
+        mock_backup_client = Mock()
+        mock_backup_client.get_games_last_n_days.side_effect = Exception("Backup failed")
+
+        client = NBAClient()
+        client.backup_client = mock_backup_client
+
+        # Mock NBA API to fail
+        with patch.object(client, '_get_scoreboard', side_effect=NBAAPIError("Primary failed")):
+            with pytest.raises(NBAAPIError) as exc_info:
+                client.get_games_last_n_days(days=1)
+
+            assert "Both primary and backup data sources failed" in str(exc_info.value)
