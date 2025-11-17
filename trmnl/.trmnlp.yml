@@ -50,7 +50,7 @@ variables:
       has_favorite: true
       points: "75.0"
 
-  updated_at: "02:30 PM"
+  updated_at: "2025-01-15 14:30"
 
 # Alternative sample data for testing empty state
 # Uncomment to test the "no games" scenario
@@ -59,4 +59,4 @@ variables:
 #   score: "0"
 #   breakdown: {}
 #   error_message: "No NBA games found in the past 7 days"
-#   updated_at: "02:30 PM"
+#   updated_at: "2025-01-15 14:30"

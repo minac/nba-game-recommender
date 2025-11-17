@@ -158,7 +158,7 @@ def trmnl_webhook():
             'game': game_data,
             'score': formatted_score,
             'breakdown': formatted_breakdown,
-            'updated_at': datetime.now().strftime('%I:%M %p')
+            'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
         logger.info("TRMNL webhook returned game recommendation successfully")
         return jsonify({
@@ -176,7 +176,7 @@ def trmnl_webhook():
                 'score': '0',
                 'breakdown': {},
                 'error_message': f'No NBA games found in the past {days} days',
-                'updated_at': datetime.now().strftime('%I:%M %p')
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
             }
             return jsonify({
                 'merge_variables': merge_variables
@@ -190,7 +190,7 @@ def trmnl_webhook():
                     'score': '0',
                     'breakdown': {},
                     'error_message': f'Error: {error_message}',
-                    'updated_at': datetime.now().strftime('%I:%M %p')
+                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
                 }
             }), 500
 
@@ -268,7 +268,7 @@ def render_trmnl_screen():
                 'game': game_data,
                 'score': formatted_score,
                 'breakdown': formatted_breakdown,
-                'updated_at': datetime.now().strftime('%I:%M %p')
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
             }
         else:
             merge_variables = {
@@ -276,7 +276,7 @@ def render_trmnl_screen():
                 'score': '0',
                 'breakdown': {},
                 'error_message': f'No NBA games found in the past {days} days',
-                'updated_at': datetime.now().strftime('%I:%M %p')
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
             }
 
         # Load and render the Liquid template
