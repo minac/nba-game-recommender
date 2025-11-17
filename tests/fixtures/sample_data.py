@@ -116,10 +116,10 @@ def get_sample_boxscore_response():
     return {
         'boxScoreTraditional': {
             'players': [
-                {'name': 'LeBron James', 'points': 28},
-                {'name': 'Jayson Tatum', 'points': 32},
-                {'name': 'Anthony Davis', 'points': 18},
-                {'name': 'Regular Player', 'points': 10},
+                {'firstName': 'LeBron', 'familyName': 'James', 'points': 28},
+                {'firstName': 'Jayson', 'familyName': 'Tatum', 'points': 32},
+                {'firstName': 'Anthony', 'familyName': 'Davis', 'points': 18},
+                {'firstName': 'Regular', 'familyName': 'Player', 'points': 10},
             ]
         }
     }

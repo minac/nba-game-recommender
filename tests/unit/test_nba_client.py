@@ -287,8 +287,8 @@ class TestNBAClient:
         boxscore_data = {
             'boxScoreTraditional': {
                 'players': [
-                    {'name': 'Regular Player 1', 'points': 10},
-                    {'name': 'Regular Player 2', 'points': 12},
+                    {'firstName': 'Regular', 'familyName': 'Player 1', 'points': 10},
+                    {'firstName': 'Regular', 'familyName': 'Player 2', 'points': 12},
                 ]
             }
         }

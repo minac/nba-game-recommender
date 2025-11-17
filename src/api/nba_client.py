@@ -237,7 +237,11 @@ class NBAClient:
                 logger.debug(f"First player fields: {list(players[0].keys())}")
 
             for player in players:
-                player_name = player.get('name', '')
+                # NBA Stats API v3 uses firstName and familyName fields, not a single 'name' field
+                first_name = player.get('firstName', '')
+                family_name = player.get('familyName', '')
+                player_name = f"{first_name} {family_name}".strip()
+
                 logger.debug(f"Checking player: '{player_name}' against star players")
                 if player_name in self.STAR_PLAYERS:
                     star_count += 1
