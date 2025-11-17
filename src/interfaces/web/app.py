@@ -103,7 +103,10 @@ def recommend():
 @app.route('/api/trmnl', methods=['GET'])
 def trmnl_webhook():
     """
-    TRMNL webhook endpoint that returns game data in TRMNL-compatible format.
+    TRMNL polling endpoint that returns game data in TRMNL-compatible format.
+
+    For TRMNL's Polling strategy, data is returned at the root level (not wrapped in merge_variables).
+    For Webhook strategy, use POST to /api/trmnl/webhook instead.
 
     Query parameters:
     - days: Number of days to look back (default: 7)
@@ -127,7 +130,7 @@ def trmnl_webhook():
     # Use shared service
     response = game_service.get_best_game(days=days, favorite_team=favorite_team)
 
-    # Prepare TRMNL-compatible response with merge_variables
+    # Prepare TRMNL-compatible response (root level for polling strategy)
     if response['success']:
         result = response['data']
         game_data = result.get('game', {})
@@ -165,45 +168,42 @@ def trmnl_webhook():
             }
         }
 
-        merge_variables = {
+        # Return data at root level for TRMNL polling strategy
+        data = {
             'game': game_data,
             'score': formatted_score,
             'breakdown': formatted_breakdown,
             'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
-        logger.info("TRMNL webhook returned game recommendation successfully")
-        return jsonify({
-            'merge_variables': merge_variables
-        })
+        logger.info("TRMNL polling endpoint returned game recommendation successfully")
+        return jsonify(data)
     else:
         # No games found or error - return appropriate state
         error_code = response.get('error_code')
         error_message = response.get('error', 'Unknown error')
 
         if error_code == 'NO_GAMES':
-            logger.warning(f"No games found for TRMNL webhook (days={days})")
-            merge_variables = {
+            logger.warning(f"No games found for TRMNL polling endpoint (days={days})")
+            # Return empty state at root level
+            data = {
                 'game': None,
                 'score': '0',
                 'breakdown': {},
                 'error_message': f'No NBA games found in the past {days} days',
                 'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
             }
-            return jsonify({
-                'merge_variables': merge_variables
-            })
+            return jsonify(data)
         else:
             # Return error state for TRMNL display
             logger.error(f"Error in /api/trmnl: {error_message}")
-            return jsonify({
-                'merge_variables': {
-                    'game': None,
-                    'score': '0',
-                    'breakdown': {},
-                    'error_message': f'Error: {error_message}',
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
-                }
-            }), 500
+            data = {
+                'game': None,
+                'score': '0',
+                'breakdown': {},
+                'error_message': f'Error: {error_message}',
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
+            }
+            return jsonify(data), 500
 
 
 @app.route('/trmnl-viewer')
