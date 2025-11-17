@@ -3,12 +3,16 @@ import pytest
 import sys
 import shutil
 import tempfile
+import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+# Set test API key for Ball Don't Lie
+os.environ['BALLDONTLIE_API_KEY'] = 'test_key_for_tests'
 
 
 @pytest.fixture(scope="session", autouse=True)

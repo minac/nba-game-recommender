@@ -22,8 +22,7 @@ class GameRecommender:
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
-        # Use NBA Stats API as data source
-        print("Using NBA Stats API as data source")
+        # Use Ball Don't Lie API as data source
         self.nba_client = NBAClient(config_path=config_path)
 
         self.scorer = GameScorer(self.config.get('scoring', {}))
@@ -176,16 +175,12 @@ ENGAGEMENT SCORE: {score:.2f}
 DETAILED SCORING EXPLANATION:
 {'='*60}
 
-1. LEAD CHANGES (Weight: {config['lead_changes_weight']} pts per change)
-   Count: {breakdown['lead_changes']['count']}
-   Calculation: {breakdown['lead_changes']['count']} × {config['lead_changes_weight']} = {breakdown['lead_changes']['points']:.1f} points
-
-2. TOP 5 TEAMS (Bonus: {config['top5_team_bonus']} pts per team)
+1. TOP 5 TEAMS (Bonus: {config['top5_team_bonus']} pts per team)
    Teams in game: {breakdown['top5_teams']['count']}
    Calculation: {breakdown['top5_teams']['count']} × {config['top5_team_bonus']} = {breakdown['top5_teams']['points']:.1f} points
    {f"Current Top 5 Teams: {', '.join(sorted(self.nba_client.TOP_5_TEAMS))}" if breakdown['top5_teams']['count'] == 0 else ''}
 
-3. GAME CLOSENESS (Max Bonus: {config['close_game_bonus']} pts)
+2. GAME CLOSENESS (Max Bonus: {config['close_game_bonus']} pts)
    Final Margin: {breakdown['close_game']['margin']} points
    Scoring Tiers:
      • 0-3 pts: {config['close_game_bonus']} points (100%)
@@ -195,17 +190,17 @@ DETAILED SCORING EXPLANATION:
      • 16+ pts: 0 points
    Points Awarded: {breakdown['close_game']['points']:.1f} points
 
-4. TOTAL POINTS (Minimum Threshold: {config['min_total_points']})
+3. TOTAL POINTS (Minimum Threshold: {config['min_total_points']})
    Total Points: {breakdown['total_points']['total']}
    Threshold Met: {breakdown['total_points']['threshold_met']}
    {'   Penalty: 90% reduction applied to final score' if breakdown['total_points'].get('penalty_applied') else '   No penalty applied'}
 
-5. STAR POWER (Weight: {config['star_power_weight']} pts per star)
+4. STAR POWER (Weight: {config['star_power_weight']} pts per star)
    Star Players: {breakdown['star_power']['count']}
    Calculation: {breakdown['star_power']['count']} × {config['star_power_weight']} = {breakdown['star_power']['points']:.1f} points
    {f"Current Star Players: {', '.join(sorted(self.nba_client.STAR_PLAYERS))}" if breakdown['star_power']['count'] == 0 else ''}
 
-6. FAVORITE TEAM (Bonus: {config['favorite_team_bonus']} pts)
+5. FAVORITE TEAM (Bonus: {config['favorite_team_bonus']} pts)
    Has Favorite Team: {'Yes' if breakdown['favorite_team']['has_favorite'] else 'No'}
    Points Awarded: {breakdown['favorite_team']['points']:.1f} points
 
@@ -213,7 +208,7 @@ DETAILED SCORING EXPLANATION:
 FINAL CALCULATION:
 {'='*60}
 
-Base Score: {breakdown['lead_changes']['points']:.1f} + {breakdown['top5_teams']['points']:.1f} + {breakdown['close_game']['points']:.1f} + {breakdown['star_power']['points']:.1f} + {breakdown['favorite_team']['points']:.1f}
+Base Score: {breakdown['top5_teams']['points']:.1f} + {breakdown['close_game']['points']:.1f} + {breakdown['star_power']['points']:.1f} + {breakdown['favorite_team']['points']:.1f}
 {f"After Penalty: × 0.1 (low total points)" if breakdown['total_points'].get('penalty_applied') else ''}
 FINAL SCORE: {score:.2f}
 
@@ -234,7 +229,6 @@ ENGAGEMENT SCORE: {score:.2f}
 {'='*60}
 
 Score Breakdown:
-  • Lead Changes: {breakdown['lead_changes']['count']} ({breakdown['lead_changes']['points']:.1f} pts)
   • Top 5 Teams: {breakdown['top5_teams']['count']} team(s) ({breakdown['top5_teams']['points']:.1f} pts)
   • Close Game: ({breakdown['close_game']['points']:.1f} pts)
   • Total Points: {breakdown['total_points']['total']} (threshold: {breakdown['total_points']['threshold_met']})

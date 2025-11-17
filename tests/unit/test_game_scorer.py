@@ -15,7 +15,6 @@ class TestGameScorer:
     def test_initialization_with_default_config(self):
         """Test GameScorer initializes with default values when config is empty."""
         scorer = GameScorer({})
-        assert scorer.lead_changes_weight == 10
         assert scorer.top5_team_bonus == 50
         assert scorer.close_game_bonus == 100
         assert scorer.min_total_points == 200
@@ -25,7 +24,6 @@ class TestGameScorer:
     def test_initialization_with_custom_config(self):
         """Test GameScorer initializes with custom config values."""
         custom_config = {
-            'lead_changes_weight': 15,
             'top5_team_bonus': 60,
             'close_game_bonus': 120,
             'min_total_points': 180,
@@ -33,28 +31,11 @@ class TestGameScorer:
             'favorite_team_bonus': 80
         }
         scorer = GameScorer(custom_config)
-        assert scorer.lead_changes_weight == 15
         assert scorer.top5_team_bonus == 60
         assert scorer.close_game_bonus == 120
         assert scorer.min_total_points == 180
         assert scorer.star_power_weight == 25
         assert scorer.favorite_team_bonus == 80
-
-    def test_lead_changes_scoring(self):
-        """Test that lead changes are scored correctly."""
-        game = get_sample_game(lead_changes=10)
-        result = self.scorer.score_game(game)
-
-        assert result['breakdown']['lead_changes']['count'] == 10
-        assert result['breakdown']['lead_changes']['points'] == 100  # 10 * 10
-
-    def test_lead_changes_zero(self):
-        """Test scoring when there are no lead changes."""
-        game = get_sample_game(lead_changes=0)
-        result = self.scorer.score_game(game)
-
-        assert result['breakdown']['lead_changes']['count'] == 0
-        assert result['breakdown']['lead_changes']['points'] == 0
 
     def test_top5_teams_both(self):
         """Test scoring when both teams are top 5."""
@@ -145,7 +126,6 @@ class TestGameScorer:
         game = get_sample_game(
             home_score=85,
             away_score=90,
-            lead_changes=10,
             star_players=2
         )  # 175 total, below 200
         result = self.scorer.score_game(game)
@@ -154,8 +134,8 @@ class TestGameScorer:
         assert result['breakdown']['total_points']['threshold_met'] is False
         assert result['breakdown']['total_points']['penalty_applied'] is True
         # Score should be reduced by 90%, but star power is added after penalty
-        # (100 lead + 80 close) * 0.1 + 40 star = 18 + 40 = 58
-        assert result['score'] == 58.0
+        # (80 close) * 0.1 + 40 star = 8 + 40 = 48
+        assert result['score'] == 48.0
 
     def test_total_points_exactly_at_threshold(self):
         """Test games exactly at threshold are not penalized."""
@@ -221,7 +201,6 @@ class TestGameScorer:
             away_abbr='BOS',
             home_score=118,
             away_score=115,  # 3 point margin (close)
-            lead_changes=15,
             star_players=6
         )
         top5_teams = {'LAL', 'BOS', 'DEN', 'MIL', 'PHX'}
@@ -232,14 +211,13 @@ class TestGameScorer:
         )
 
         # Verify individual components
-        assert result['breakdown']['lead_changes']['points'] == 150  # 15 * 10
         assert result['breakdown']['top5_teams']['points'] == 100  # 2 * 50
         assert result['breakdown']['close_game']['points'] == 100  # 3pt margin
         assert result['breakdown']['star_power']['points'] == 120  # 6 * 20
         assert result['breakdown']['favorite_team']['points'] == 75
 
-        # Total should be sum of all components
-        expected_score = 150 + 100 + 100 + 120 + 75
+        # Total should be sum of all components (no lead_changes)
+        expected_score = 100 + 100 + 120 + 75
         assert result['score'] == expected_score
 
     def test_comprehensive_low_score_game(self):
@@ -249,25 +227,23 @@ class TestGameScorer:
             away_abbr='POR',
             home_score=95,
             away_score=75,  # 20 point margin (blowout)
-            lead_changes=2,
             star_players=0
         )
         result = self.scorer.score_game(game)
 
         # Low score due to blowout, no stars, no top5 teams, below point threshold
-        assert result['breakdown']['lead_changes']['points'] == 20  # 2 * 10
         assert result['breakdown']['top5_teams']['points'] == 0
         assert result['breakdown']['close_game']['points'] == 0  # 20pt margin
         assert result['breakdown']['star_power']['points'] == 0
         assert result['breakdown']['favorite_team']['points'] == 0
         assert result['breakdown']['total_points']['penalty_applied'] is True
 
-        # Should be heavily penalized due to low total points
-        assert result['score'] < 10
+        # Should be heavily penalized due to low total points (0 score after penalty)
+        assert result['score'] == 0
 
     def test_score_rounded_to_two_decimals(self):
         """Test that final score is rounded to 2 decimal places."""
-        game = get_sample_game(lead_changes=7, star_players=3)  # Should give 230
+        game = get_sample_game(star_players=3)
         result = self.scorer.score_game(game)
 
         # Verify it's a number rounded to 2 decimal places
@@ -284,7 +260,6 @@ class TestGameScorer:
         assert 'breakdown' in result
 
         # Verify breakdown structure
-        assert 'lead_changes' in result['breakdown']
         assert 'top5_teams' in result['breakdown']
         assert 'close_game' in result['breakdown']
         assert 'total_points' in result['breakdown']
@@ -293,17 +268,16 @@ class TestGameScorer:
 
     def test_penalty_calculation_precision(self):
         """Test that the 90% penalty is calculated correctly."""
-        # Create a game that would score 200 before penalty (not counting star/favorite)
+        # Create a game that would score 100 before penalty (not counting star/favorite)
         game = get_sample_game(
             home_score=85,
             away_score=85,  # Below 200 threshold, 0 margin = 100 close bonus
-            lead_changes=10,  # 100 points
             star_players=0
         )
         result = self.scorer.score_game(game)
 
-        # (100 lead + 100 close) * 0.1 (90% penalty) = 20
-        assert result['score'] == 20.0
+        # (100 close) * 0.1 (90% penalty) = 10
+        assert result['score'] == 10.0
 
     def test_margin_calculation_uses_absolute_value(self):
         """Test that margin is calculated correctly regardless of which team won."""

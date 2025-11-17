@@ -3,9 +3,8 @@ favorite_team: GSW # Set to team abbreviation (e.g., "LAL", "BOS", "GSW") or lea
 
 # Scoring weights
 scoring:
-  lead_changes_weight: 10 # Points per lead change
   top5_team_bonus: 20 # Bonus if top 5 team plays
-  close_game_bonus: 50 # Max bonus for close games
+  close_game_bonus: 50 # Max bonus for close games (based on final margin)
   min_total_points: 200 # Minimum total points threshold
   star_power_weight: 20 # Points per star player
   favorite_team_bonus: 100 # Bonus if favorite team plays
@@ -29,7 +28,7 @@ cache:
   game_details_ttl_days: 30 # Cache game details for 30 days
   auto_cleanup: true # Automatically remove expired cache on startup
 
-# BallDontLie API Configuration (backup data source)
-# Set BALLDONTLIE_API_KEY environment variable in Render secrets
-balldontlie:
-  enabled: true # Enable/disable BallDontLie as backup source
+# NBA API Configuration (Ball Don't Lie)
+# Set BALLDONTLIE_API_KEY environment variable or configure api_key below
+nba_api:
+  api_key: null # Optional: set API key here (environment variable takes precedence)

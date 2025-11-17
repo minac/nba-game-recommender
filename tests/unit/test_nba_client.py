@@ -1,55 +1,63 @@
-"""Unit tests for NBAClient class."""
+"""Unit tests for NBAClient class (Ball Don't Lie API)."""
 import pytest
 import responses
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
-from src.api.nba_client import NBAClient, NBAAPITimeoutError, NBAAPIError
-from tests.fixtures.sample_data import (
-    get_sample_playbyplay_response,
-)
+from src.api.nba_client import NBAClient, NBAAPIError
 
 
 class TestNBAClient:
-    """Test cases for NBAClient class."""
+    """Test cases for NBAClient class using Ball Don't Lie API."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.client = NBAClient()
+        # Mock the API key for testing
+        with patch.dict('os.environ', {'BALLDONTLIE_API_KEY': 'test_key'}):
+            self.client = NBAClient()
+
+        # Clear cache to avoid interference between tests
+        if self.client.cache:
+            self.client.cache.clear_all()
 
     def test_initialization(self):
         """Test NBAClient initializes correctly."""
-        assert self.client.BASE_URL == "https://stats.nba.com/stats"
-        assert self.client.session is not None
-        assert 'User-Agent' in self.client.session.headers
+        with patch.dict('os.environ', {'BALLDONTLIE_API_KEY': 'test_key'}):
+            client = NBAClient()
+            assert client.BASE_URL == "https://api.balldontlie.io/v1"
+            assert client.session is not None
+            assert 'Authorization' in client.session.headers
 
-    def test_top5_teams_property_fetches_real_data(self):
-        """Test TOP_5_TEAMS property fetches real data from NBA API."""
+    def test_initialization_without_api_key_raises_error(self):
+        """Test that NBAClient raises error when API key is missing."""
+        with patch.dict('os.environ', {}, clear=True):
+            # Mock config to not have api_key either
+            with patch('builtins.open', side_effect=FileNotFoundError):
+                with pytest.raises(NBAAPIError, match="Ball Don't Lie API key not found"):
+                    NBAClient()
+
+    def test_top5_teams_returns_default(self):
+        """Test TOP_5_TEAMS property returns default teams."""
         top_teams = self.client.TOP_5_TEAMS
 
         assert isinstance(top_teams, set)
         assert len(top_teams) == 5
-        # Should contain real NBA teams (3-letter codes)
-        for team in top_teams:
-            assert isinstance(team, str)
-            assert len(team) == 3
-            assert team.isupper()
+        # Should contain default NBA teams
+        assert 'BOS' in top_teams or 'DEN' in top_teams or 'LAL' in top_teams
 
-    def test_star_players_property_fetches_real_data(self):
-        """Test STAR_PLAYERS property fetches real data from NBA API."""
+    def test_star_players_returns_default(self):
+        """Test STAR_PLAYERS property returns default players."""
         star_players = self.client.STAR_PLAYERS
 
         assert isinstance(star_players, set)
         assert len(star_players) > 0
-        # Should contain real player names
-        for player in star_players:
-            assert isinstance(player, str)
-            assert ' ' in player  # Names should have spaces
+        # Should contain some well-known players
+        assert 'LeBron James' in star_players or 'Stephen Curry' in star_players
 
-    def test_is_top5_team_with_real_data(self):
-        """Test is_top5_team with real NBA data."""
+    def test_is_top5_team(self):
+        """Test is_top5_team method."""
         top_teams = self.client.TOP_5_TEAMS
 
-        # Pick a team from the actual top 5
+        # Pick a team from the top 5
         if top_teams:
             real_top_team = list(top_teams)[0]
             assert self.client.is_top5_team(real_top_team) is True
@@ -57,275 +65,173 @@ class TestNBAClient:
         # Non-existent team should be False
         assert self.client.is_top5_team('XXX') is False
 
-    def test_calculate_lead_changes_empty_actions(self):
-        """Test _calculate_lead_changes with empty actions list."""
-        lead_changes = self.client._calculate_lead_changes([])
-        assert lead_changes == 0
-
-    def test_calculate_lead_changes_no_changes(self):
-        """Test _calculate_lead_changes when one team always leads."""
-        actions = [
-            {'homeScore': 2, 'awayScore': 0},
-            {'homeScore': 5, 'awayScore': 2},
-            {'homeScore': 8, 'awayScore': 5},
-            {'homeScore': 10, 'awayScore': 7},
-        ]
-        lead_changes = self.client._calculate_lead_changes(actions)
-        assert lead_changes == 0
-
-    def test_calculate_lead_changes_multiple_changes(self):
-        """Test _calculate_lead_changes with multiple lead changes."""
-        actions = [
-            {'homeScore': 0, 'awayScore': 2},   # Away leads
-            {'homeScore': 3, 'awayScore': 2},   # Home takes lead (change 1)
-            {'homeScore': 3, 'awayScore': 5},   # Away takes lead (change 2)
-            {'homeScore': 8, 'awayScore': 5},   # Home takes lead (change 3)
-            {'homeScore': 8, 'awayScore': 10},  # Away takes lead (change 4)
-            {'homeScore': 13, 'awayScore': 10}, # Home takes lead (change 5)
-        ]
-        lead_changes = self.client._calculate_lead_changes(actions)
-        assert lead_changes == 5
-
-    def test_calculate_lead_changes_ignores_ties(self):
-        """Test _calculate_lead_changes doesn't count ties as lead changes."""
-        actions = [
-            {'homeScore': 0, 'awayScore': 2},   # Away leads
-            {'homeScore': 2, 'awayScore': 2},   # Tie (not a change)
-            {'homeScore': 5, 'awayScore': 2},   # Home leads (change 1)
-            {'homeScore': 5, 'awayScore': 5},   # Tie (not a change)
-            {'homeScore': 5, 'awayScore': 8},   # Away leads (change 2)
-        ]
-        lead_changes = self.client._calculate_lead_changes(actions)
-        assert lead_changes == 2
-
-    def test_calculate_lead_changes_handles_zero_scores(self):
-        """Test _calculate_lead_changes handles games starting at 0-0."""
-        actions = [
-            {'homeScore': 0, 'awayScore': 0},   # Tie at start
-            {'homeScore': 2, 'awayScore': 0},   # Home leads
-            {'homeScore': 2, 'awayScore': 3},   # Away takes lead (change 1)
-        ]
-        lead_changes = self.client._calculate_lead_changes(actions)
-        assert lead_changes == 1
-
-    def test_calculate_lead_changes_tie_to_lead_not_counted_as_change(self):
-        """Test that going from tie to lead is not counted as a lead change."""
-        actions = [
-            {'homeScore': 0, 'awayScore': 0},   # Tie
-            {'homeScore': 2, 'awayScore': 0},   # Home leads (not a change, first lead)
-            {'homeScore': 2, 'awayScore': 2},   # Tie
-            {'homeScore': 2, 'awayScore': 5},   # Away leads (change 1)
-        ]
-        lead_changes = self.client._calculate_lead_changes(actions)
-        assert lead_changes == 1
-
     def test_top5_teams_caching(self):
-        """Test that TOP_5_TEAMS caches data and doesn't re-fetch."""
-        # First access - should fetch from API
+        """Test that TOP_5_TEAMS caches data."""
         teams1 = self.client.TOP_5_TEAMS
-
-        # Second access - should use cache (same object reference)
         teams2 = self.client.TOP_5_TEAMS
 
-        # Should be the same object
+        # Should be the same object (cached)
         assert teams1 is teams2
 
     def test_star_players_caching(self):
-        """Test that STAR_PLAYERS caches data and doesn't re-fetch."""
-        # First access - should fetch from API
+        """Test that STAR_PLAYERS caches data."""
         players1 = self.client.STAR_PLAYERS
-
-        # Second access - should use cache (same object reference)
         players2 = self.client.STAR_PLAYERS
 
-        # Should be the same object
+        # Should be the same object (cached)
         assert players1 is players2
 
-    @pytest.mark.slow
-    def test_get_games_last_n_days_with_real_api(self):
-        """Test get_games_last_n_days with real API (slow test)."""
-        # Only look back 1 day to minimize API calls
-        games = self.client.get_games_last_n_days(days=1)
+    @responses.activate
+    def test_get_scoreboard_success(self):
+        """Test _get_scoreboard successfully fetches games."""
+        game_date = '2024-01-15'
 
-        # Should return a list (may be empty if no games that day)
-        assert isinstance(games, list)
+        # Mock Ball Don't Lie API response
+        responses.add(
+            responses.GET,
+            'https://api.balldontlie.io/v1/games',
+            json={
+                'data': [
+                    {
+                        'id': 12345,
+                        'status': 'Final',
+                        'home_team': {
+                            'full_name': 'Los Angeles Lakers',
+                            'abbreviation': 'LAL'
+                        },
+                        'visitor_team': {
+                            'full_name': 'Boston Celtics',
+                            'abbreviation': 'BOS'
+                        },
+                        'home_team_score': 118,
+                        'visitor_team_score': 115
+                    }
+                ]
+            },
+            status=200
+        )
 
-        # If games exist, validate structure
-        for game in games:
-            assert 'game_id' in game
-            assert 'game_date' in game
-            assert 'home_team' in game
-            assert 'away_team' in game
-            assert 'total_points' in game
-            assert 'final_margin' in game
-            assert 'lead_changes' in game
-            assert 'star_players_count' in game
+        games = self.client._get_scoreboard(game_date)
 
-    # Tests that SHOULD use mocks (error conditions that can't be easily triggered)
+        assert len(games) == 1
+        assert games[0]['game_id'] == '12345'
+        assert games[0]['home_team']['abbr'] == 'LAL'
+        assert games[0]['away_team']['abbr'] == 'BOS'
+        assert games[0]['home_team']['score'] == 118
+        assert games[0]['away_team']['score'] == 115
+        assert games[0]['total_points'] == 233
+        assert games[0]['final_margin'] == 3
 
     @responses.activate
-    def test_fetch_top_teams_handles_error(self):
-        """Test _fetch_top_teams returns fallback on API error."""
-        from tests.fixtures.sample_data import get_sample_standings_response
+    def test_get_scoreboard_filters_non_final_games(self):
+        """Test _get_scoreboard filters out non-final games."""
+        game_date = '2024-01-15'
 
         responses.add(
             responses.GET,
-            'https://stats.nba.com/stats/leaguestandingsv3',
+            'https://api.balldontlie.io/v1/games',
+            json={
+                'data': [
+                    {
+                        'id': 1,
+                        'status': 'Final',
+                        'home_team': {'abbreviation': 'LAL'},
+                        'visitor_team': {'abbreviation': 'BOS'},
+                        'home_team_score': 100,
+                        'visitor_team_score': 98
+                    },
+                    {
+                        'id': 2,
+                        'status': 'In Progress',
+                        'home_team': {'abbreviation': 'GSW'},
+                        'visitor_team': {'abbreviation': 'MIA'},
+                        'home_team_score': 50,
+                        'visitor_team_score': 45
+                    }
+                ]
+            },
+            status=200
+        )
+
+        games = self.client._get_scoreboard(game_date)
+
+        # Should only return the final game
+        assert len(games) == 1
+        assert games[0]['game_id'] == '1'
+
+    @responses.activate
+    def test_get_scoreboard_handles_api_error(self):
+        """Test _get_scoreboard handles API errors."""
+        game_date = '2024-01-15'
+
+        responses.add(
+            responses.GET,
+            'https://api.balldontlie.io/v1/games',
             json={'error': 'Server error'},
             status=500
         )
 
-        # Create new client to trigger fetch
-        client = NBAClient()
-
-        # Should return fallback teams without crashing
-        teams = client.TOP_5_TEAMS
-        assert isinstance(teams, set)
-        assert len(teams) == 5
+        with pytest.raises(NBAAPIError, match="Failed to fetch games"):
+            self.client._get_scoreboard(game_date)
 
     @responses.activate
-    def test_fetch_star_players_handles_error(self):
-        """Test _fetch_star_players returns fallback on API error."""
-        responses.add(
-            responses.GET,
-            'https://stats.nba.com/stats/leagueleaders',
-            json={'error': 'Server error'},
-            status=500
-        )
+    def test_get_games_last_n_days(self):
+        """Test get_games_last_n_days fetches games for multiple days."""
+        # Mock multiple days of games
+        for i in range(3):
+            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+            responses.add(
+                responses.GET,
+                'https://api.balldontlie.io/v1/games',
+                json={
+                    'data': [
+                        {
+                            'id': 100 + i,
+                            'status': 'Final',
+                            'home_team': {'full_name': 'Team A', 'abbreviation': 'TMA'},
+                            'visitor_team': {'full_name': 'Team B', 'abbreviation': 'TMB'},
+                            'home_team_score': 100,
+                            'visitor_team_score': 95
+                        }
+                    ]
+                },
+                status=200
+            )
 
-        # Create new client to trigger fetch
-        client = NBAClient()
+        games = self.client.get_games_last_n_days(days=2)
 
-        # Should return fallback players without crashing
-        players = client.STAR_PLAYERS
-        assert isinstance(players, set)
-        assert len(players) > 0
+        # Should have games from 3 days (start_date to end_date inclusive)
+        assert len(games) == 3
 
-    @responses.activate
-    def test_get_game_details_handles_error(self):
-        """Test _get_game_details returns defaults on API error."""
-        responses.add(
-            responses.GET,
-            'https://stats.nba.com/stats/playbyplayv3',
-            json={'error': 'Not found'},
-            status=404
-        )
+    def test_cache_integration(self):
+        """Test that cache works correctly."""
+        if not self.client.cache:
+            pytest.skip("Cache not enabled")
 
-        details = self.client._get_game_details('invalid_id')
-
-        # Should return defaults instead of crashing
-        assert details['lead_changes'] == 0
-        assert details['star_players_count'] == 0
-
-    def test_cache_integration_with_real_data(self):
-        """Test that cache works correctly with real API data."""
-        # Get a scoreboard (will fetch from API or cache)
         date_str = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
-        # First call - may hit API or cache depending on previous tests
-        games1 = self.client._get_scoreboard(date_str)
+        # Mock first call
+        with responses.RequestsMock() as rsps:
+            rsps.add(
+                responses.GET,
+                'https://api.balldontlie.io/v1/games',
+                json={'data': [
+                    {
+                        'id': 999,
+                        'status': 'Final',
+                        'home_team': {'abbreviation': 'LAL'},
+                        'visitor_team': {'abbreviation': 'BOS'},
+                        'home_team_score': 100,
+                        'visitor_team_score': 98
+                    }
+                ]},
+                status=200
+            )
 
-        # Second call - should definitely hit cache
+            games1 = self.client._get_scoreboard(date_str)
+
+        # Second call should hit cache (no API call needed)
         games2 = self.client._get_scoreboard(date_str)
 
         # Should be the same data
         assert games1 == games2
-
-    def test_scoreboard_returns_only_final_games(self):
-        """Test that scoreboard filtering works with real data."""
-        # Get recent scoreboard
-        date_str = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        games = self.client._get_scoreboard(date_str)
-
-        # All returned games should be final (status 3)
-        # We can't verify this directly since we only get final games,
-        # but we can verify the structure
-        for game in games:
-            assert 'game_id' in game
-            assert 'home_team' in game
-            assert 'away_team' in game
-
-
-class TestBallDontLieFallback:
-    """Test suite for BallDontLie fallback functionality."""
-
-    @patch('src.api.nba_client.BallDontLieClient')
-    def test_fallback_on_timeout(self, mock_balldontlie_class):
-        """Test that BallDontLie is used when NBA API times out."""
-        # Setup mock BallDontLie client
-        mock_backup_client = Mock()
-        mock_backup_client.get_games_last_n_days.return_value = [
-            {
-                'game_id': 'bdl123',
-                'home_team': {'abbr': 'LAL', 'score': 100},
-                'away_team': {'abbr': 'BOS', 'score': 98}
-            }
-        ]
-        mock_balldontlie_class.return_value = mock_backup_client
-
-        # Create config that enables BallDontLie
-        with patch('builtins.open', create=True) as mock_open:
-            mock_open.return_value.__enter__.return_value.read.return_value = """
-balldontlie:
-  enabled: true
-  api_key: test_key
-"""
-            client = NBAClient()
-            client.backup_client = mock_backup_client
-
-        # Mock NBA API to raise timeout
-        with patch.object(client, '_get_scoreboard', side_effect=NBAAPITimeoutError("Timeout")):
-            games = client.get_games_last_n_days(days=1)
-
-        # Should have called backup client
-        mock_backup_client.get_games_last_n_days.assert_called_once_with(1)
-        assert len(games) == 1
-        assert games[0]['game_id'] == 'bdl123'
-
-    @patch('src.api.nba_client.BallDontLieClient')
-    def test_no_fallback_when_disabled(self, mock_balldontlie_class):
-        """Test that fallback doesn't happen when BallDontLie is disabled."""
-        client = NBAClient()
-        client.backup_client = None
-
-        # Mock NBA API to raise timeout
-        with patch.object(client, '_get_scoreboard', side_effect=NBAAPITimeoutError("Timeout")):
-            with pytest.raises(NBAAPITimeoutError):
-                client.get_games_last_n_days(days=1)
-
-    @patch('src.api.nba_client.BallDontLieClient')
-    def test_fallback_on_general_api_error(self, mock_balldontlie_class):
-        """Test that BallDontLie is used on general NBA API errors."""
-        # Setup mock BallDontLie client
-        mock_backup_client = Mock()
-        mock_backup_client.get_games_last_n_days.return_value = [
-            {'game_id': 'bdl456', 'home_team': {'abbr': 'GSW'}}
-        ]
-
-        client = NBAClient()
-        client.backup_client = mock_backup_client
-
-        # Mock NBA API to raise generic error
-        with patch.object(client, '_get_scoreboard', side_effect=NBAAPIError("API Error")):
-            games = client.get_games_last_n_days(days=1)
-
-        # Should have used backup
-        mock_backup_client.get_games_last_n_days.assert_called_once()
-        assert len(games) == 1
-
-    @patch('src.api.nba_client.BallDontLieClient')
-    def test_both_sources_fail(self, mock_balldontlie_class):
-        """Test error handling when both primary and backup sources fail."""
-        # Setup mock BallDontLie client that also fails
-        mock_backup_client = Mock()
-        mock_backup_client.get_games_last_n_days.side_effect = Exception("Backup failed")
-
-        client = NBAClient()
-        client.backup_client = mock_backup_client
-
-        # Mock NBA API to fail
-        with patch.object(client, '_get_scoreboard', side_effect=NBAAPIError("Primary failed")):
-            with pytest.raises(NBAAPIError) as exc_info:
-                client.get_games_last_n_days(days=1)
-
-            assert "Both primary and backup data sources failed" in str(exc_info.value)

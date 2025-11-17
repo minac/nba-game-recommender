@@ -6,7 +6,7 @@ This service provides a unified interface for all clients (CLI, Web, API).
 from typing import Dict, List, Optional, Tuple, Any
 from src.core.recommender import GameRecommender
 from src.utils.logger import get_logger
-from src.api.nba_client import NBAAPITimeoutError
+from src.api.nba_client import NBAAPIError
 
 logger = get_logger(__name__)
 
@@ -129,16 +129,12 @@ class GameService:
                 'error': str(e),
                 'error_code': 'VALIDATION_ERROR'
             }
-        except NBAAPITimeoutError as e:
-            logger.error(f"NBA API timeout in get_best_game: {e}")
+        except NBAAPIError as e:
+            logger.error(f"NBA API error in get_best_game: {e}")
             return {
                 'success': False,
-                'error': (
-                    'The NBA Stats API is currently unavailable or responding too slowly. '
-                    'This is a temporary issue with the NBA\'s servers. '
-                    'Please try again in a few minutes.'
-                ),
-                'error_code': 'NBA_API_TIMEOUT'
+                'error': str(e),
+                'error_code': 'NBA_API_ERROR'
             }
         except Exception as e:
             logger.error(f"Error in get_best_game: {e}", exc_info=True)
@@ -200,16 +196,12 @@ class GameService:
                 'error': str(e),
                 'error_code': 'VALIDATION_ERROR'
             }
-        except NBAAPITimeoutError as e:
-            logger.error(f"NBA API timeout in get_all_games_ranked: {e}")
+        except NBAAPIError as e:
+            logger.error(f"NBA API error in get_all_games_ranked: {e}")
             return {
                 'success': False,
-                'error': (
-                    'The NBA Stats API is currently unavailable or responding too slowly. '
-                    'This is a temporary issue with the NBA\'s servers. '
-                    'Please try again in a few minutes.'
-                ),
-                'error_code': 'NBA_API_TIMEOUT'
+                'error': str(e),
+                'error_code': 'NBA_API_ERROR'
             }
         except Exception as e:
             logger.error(f"Error in get_all_games_ranked: {e}", exc_info=True)

@@ -6,7 +6,7 @@ This document provides context for Claude (or any AI assistant/developer) workin
 
 This is a modular NBA game recommendation system that finds the most engaging game from the past week based on multiple scoring criteria. The system can be used via CLI, REST API, or web interface.
 
-**Core Purpose**: Analyze NBA games and recommend the most exciting one to watch based on engagement factors like lead changes, star power, game closeness, and team quality.
+**Core Purpose**: Analyze NBA games and recommend the most exciting one to watch based on engagement factors like star power, game closeness, and team quality.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ src/
 │   ├── game_scorer.py      # Scoring algorithm implementation
 │   └── recommender.py      # Main recommendation engine
 ├── api/               # External data access
-│   └── nba_client.py       # NBA Stats API client with caching
+│   └── nba_client.py       # Ball Don't Lie API client with caching
 ├── utils/             # Shared utilities
 │   ├── logger.py           # Centralized logging configuration
 │   └── cache.py            # Date-based caching system
@@ -45,10 +45,12 @@ src/
    - Manages configuration loading
 
 3. **NBAClient** (`src/api/nba_client.py`)
-   - Handles all NBA Stats API interactions
-   - Fetches game schedules, box scores, standings
-   - Manages API rate limiting and error handling
+   - Handles all Ball Don't Lie API interactions
+   - Fetches game schedules, scores, standings, and season leaders
+   - Manages API rate limiting (100 requests/min) and error handling
    - Integrated with DateBasedCache for performance
+   - Dynamically fetches top 5 teams from standings
+   - Dynamically fetches star players from season leaders (top 30 scorers)
 
 4. **DateBasedCache** (`src/utils/cache.py`)
    - File-based caching system for NBA game data
@@ -80,7 +82,7 @@ nba-most-engaging-game-of-the-week/
 │   │   └── recommender.py          # Recommendation orchestration
 │   ├── api/                        # External API integration
 │   │   ├── __init__.py
-│   │   └── nba_client.py           # NBA Stats API client + caching
+│   │   └── nba_client.py           # Ball Don't Lie API client + caching
 │   ├── utils/                      # Shared utilities
 │   │   ├── __init__.py
 │   │   ├── logger.py               # Centralized logging setup
@@ -137,28 +139,28 @@ nba-most-engaging-game-of-the-week/
 
 ## Scoring Algorithm
 
-The engagement score is calculated using 6 criteria (see `src/core/game_scorer.py:22-123`):
+The engagement score is calculated using 5 criteria (see `src/core/game_scorer.py`):
 
-1. **Lead Changes** (configurable weight, default: 10 pts each)
-   - More lead changes = more exciting game
-
-2. **Top 5 Teams** (default: 50 pts per team)
+1. **Top 5 Teams** (default: 20 pts per team)
    - Bonus for games featuring elite teams
+   - Dynamically fetched from Ball Don't Lie standings API
 
-3. **Game Closeness** (default: up to 100 pts)
-   - 0-3 pts: 100 pts
-   - 4-5 pts: 80 pts
-   - 6-10 pts: 50 pts
-   - 11-15 pts: 25 pts
+2. **Game Closeness** (default: up to 50 pts)
+   - Based on final margin
+   - 0-3 pts: 50 pts
+   - 4-5 pts: 40 pts
+   - 6-10 pts: 25 pts
+   - 11-15 pts: 12.5 pts
    - 15+ pts: 0 pts
 
-4. **Total Points Threshold** (default: 200+)
+3. **Total Points Threshold** (default: 200+)
    - 90% penalty if below threshold
 
-5. **Star Power** (default: 20 pts per star)
+4. **Star Power** (default: 20 pts per star)
    - Counts star players participating
+   - Dynamically fetched from Ball Don't Lie season leaders API (top 30 scorers)
 
-6. **Favorite Team** (default: 75 pts)
+5. **Favorite Team** (default: 100 pts)
    - Bonus if user's favorite team played
 
 ## Configuration
@@ -176,12 +178,11 @@ All configuration is in `config.yaml`:
 favorite_team: "LAL"  # or null for no favorite
 
 scoring:
-  lead_changes_weight: 10
-  top5_team_bonus: 50
-  close_game_bonus: 100
+  top5_team_bonus: 20
+  close_game_bonus: 50
   min_total_points: 200
   star_power_weight: 20
-  favorite_team_bonus: 75
+  favorite_team_bonus: 100
 
 cache:
   enabled: true                    # Enable/disable caching
@@ -189,6 +190,9 @@ cache:
   scoreboard_ttl_days: 30          # Cache duration for scoreboards
   game_details_ttl_days: 30        # Cache duration for game details
   auto_cleanup: true               # Auto-remove expired cache on startup
+
+nba_api:
+  api_key: null                    # Ball Don't Lie API key (or use BALLDONTLIE_API_KEY env var)
 
 api:
   host: "0.0.0.0"
@@ -218,8 +222,9 @@ When making changes:
 
 ### Adding New Data Points
 
-1. Modify `NBAClient` methods to fetch new data
-2. Update game dictionary structure in `recommender.py`
+1. Check if Ball Don't Lie API supports the new data point
+2. Modify `NBAClient` methods to fetch new data (or add heuristic if unavailable)
+3. Update game dictionary structure in `recommender.py`
 3. Make data available to `GameScorer.score_game()`
 4. Consider caching implications
 
@@ -309,7 +314,7 @@ uv run pytest tests/integration/
 3. Recommender calls `NBAClient` to fetch games
 4. NBAClient checks `DateBasedCache` for cached data
    - **Cache HIT**: Returns cached data (fast, no API call)
-   - **Cache MISS**: Fetches from NBA Stats API, caches result
+   - **Cache MISS**: Fetches from Ball Don't Lie API, caches result
 5. For each game, `GameScorer.score_game()` calculates engagement score
 6. Games sorted by score
 7. Result formatted and returned to user
@@ -332,7 +337,7 @@ The caching system dramatically improves performance and reduces API load:
 │   ├── 2024-01-16.json
 │   └── ...
 └── games/
-    ├── 0022300123.json    # Game-specific details (lead changes, etc.)
+    ├── 0022300123.json    # Game-specific details
     ├── 0022300124.json
     └── ...
 ```
@@ -381,7 +386,7 @@ The project includes a complete e-ink display plugin for TRMNL devices:
 {{ away_score }}
 {{ game_date }}           # Formatted date
 {{ engagement_score }}    # Overall score
-{{ lead_changes }}        # Count
+{{ final_margin }}        # Final score margin
 {{ star_players }}        # Count
 {{ is_favorite }}         # "yes" or "no"
 {{ breakdown_* }}         # Individual score components
@@ -486,7 +491,8 @@ curl "http://localhost:3000/api/trmnl?days=7&team=BOS"
 
 - NBA API errors are caught and logged in `NBAClient`
 - Configuration validation happens at startup
-- Missing game data falls back to defaults (0 lead changes, etc.)
+- Missing game data falls back to defaults
+- Top teams and star players fall back to reasonable defaults if API fails
 - Invalid team abbreviations are handled gracefully
 - Cache errors are logged but don't block execution (falls back to API)
 
@@ -542,7 +548,7 @@ When testing or debugging:
 ## Dependencies
 
 **Production Dependencies**:
-- **requests**: NBA API calls
+- **requests**: Ball Don't Lie API calls
 - **flask**: REST API and web interface
 - **pyyaml**: Configuration file parsing
 - **python-dateutil**: Date manipulation
@@ -577,9 +583,10 @@ Consider these when adding features:
 - Live game recommendations during season
 - Playoff importance factor
 - Player injury impact on star power
-- Advanced metrics (offensive rating, pace, etc.)
+- Advanced metrics (offensive rating, pace, etc.) - **Note**: Limited by Ball Don't Lie API capabilities
 - Cache warming (pre-cache upcoming games)
 - Redis/memcached for distributed caching
+- ✅ **Dynamic top teams/star players** (IMPLEMENTED) - Fetched from Ball Don't Lie standings and leaders APIs
 
 ## Tips for Claude
 

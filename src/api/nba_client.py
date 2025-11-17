@@ -1,4 +1,4 @@
-"""NBA API Client for fetching game data."""
+"""NBA API Client for fetching game data using Ball Don't Lie API."""
 import requests
 import os
 from datetime import datetime, timedelta
@@ -8,7 +8,6 @@ import yaml
 
 from src.utils.logger import get_logger
 from src.utils.cache import DateBasedCache
-from src.api.balldontlie_client import BallDontLieClient
 
 logger = get_logger(__name__)
 
@@ -18,58 +17,10 @@ class NBAAPIError(Exception):
     pass
 
 
-class NBAAPITimeoutError(NBAAPIError):
-    """Exception raised when NBA API times out."""
-    pass
-
-
-def retry_with_backoff(max_retries: int = 3, base_delay: float = 1.0):
-    """
-    Decorator to retry a function with exponential backoff.
-
-    Args:
-        max_retries: Maximum number of retry attempts
-        base_delay: Base delay in seconds (doubles each retry)
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                    if attempt == max_retries:
-                        logger.error(f"{func.__name__} failed after {max_retries} retries: {e}")
-                        # Raise custom timeout error for better handling upstream
-                        raise NBAAPITimeoutError(
-                            f"NBA API is currently unavailable or too slow. "
-                            f"Request timed out after {max_retries} attempts."
-                        )
-
-                    delay = base_delay * (2 ** attempt)
-                    logger.warning(f"{func.__name__} attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-                except Exception as e:
-                    # Don't retry on other exceptions
-                    raise
-            return None
-        return wrapper
-    return decorator
-
-
 class NBAClient:
-    """Client for interacting with NBA stats API."""
+    """Client for interacting with Ball Don't Lie API."""
 
-    BASE_URL = "https://stats.nba.com/stats"
-
-    HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Referer': 'https://stats.nba.com/',
-        'Origin': 'https://stats.nba.com'
-    }
-
-    # Cache duration in seconds (24 hours)
-    CACHE_DURATION = 86400
+    BASE_URL = "https://api.balldontlie.io/v1"
 
     def __init__(self, config_path: str = 'config.yaml'):
         """
@@ -78,19 +29,31 @@ class NBAClient:
         Args:
             config_path: Path to configuration file
         """
-        self.session = requests.Session()
-        self.session.headers.update(self.HEADERS)
-
         # Load configuration
         try:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
                 cache_config = config.get('cache', {})
-                balldontlie_config = config.get('balldontlie', {})
+                nba_config = config.get('nba_api', {})
         except Exception as e:
             logger.warning(f"Could not load config, using defaults: {e}")
             cache_config = {}
-            balldontlie_config = {}
+            nba_config = {}
+
+        # Get API key from environment variable first, then config file
+        self.api_key = os.getenv('BALLDONTLIE_API_KEY') or nba_config.get('api_key')
+        if not self.api_key:
+            raise NBAAPIError(
+                "Ball Don't Lie API key not found. "
+                "Set BALLDONTLIE_API_KEY environment variable or configure in config.yaml"
+            )
+
+        # Initialize session with API key
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': self.api_key,
+            'Accept': 'application/json'
+        })
 
         # Initialize date-based cache
         cache_enabled = cache_config.get('enabled', True)
@@ -109,29 +72,15 @@ class NBAClient:
             self.cache = None
             logger.info("Cache disabled")
 
-        # Initialize BallDontLie backup client
-        self.backup_client = None
-        if balldontlie_config.get('enabled', False):
-            # Try environment variable first, then fall back to config file (for backwards compatibility)
-            api_key = os.getenv('BALLDONTLIE_API_KEY') or balldontlie_config.get('api_key')
-            if api_key:
-                try:
-                    self.backup_client = BallDontLieClient(api_key)
-                    logger.info("BallDontLie backup client initialized")
-                except Exception as e:
-                    logger.error(f"Failed to initialize BallDontLie client: {e}")
-            else:
-                logger.warning("BallDontLie enabled but no API key provided. Set BALLDONTLIE_API_KEY environment variable.")
-
         # Cache for dynamic data (top teams and star players)
         self._top_teams_cache: Optional[Set[str]] = None
         self._star_players_cache: Optional[Set[str]] = None
         self._cache_timestamp: Optional[datetime] = None
+        self.CACHE_DURATION = 86400  # 24 hours
 
     def get_games_last_n_days(self, days: int = 7) -> List[Dict]:
         """
         Fetch all completed games from the last N days.
-        Falls back to BallDontLie API if NBA Stats API fails.
 
         Args:
             days: Number of days to look back
@@ -139,35 +88,20 @@ class NBAClient:
         Returns:
             List of game dictionaries with detailed information
         """
-        try:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
 
-            games = []
-            current_date = start_date
+        games = []
+        current_date = start_date
 
-            while current_date <= end_date:
-                date_str = current_date.strftime('%Y-%m-%d')
-                daily_games = self._get_scoreboard(date_str)
-                games.extend(daily_games)
-                current_date += timedelta(days=1)
-                time.sleep(0.5)  # Rate limiting
+        while current_date <= end_date:
+            date_str = current_date.strftime('%Y-%m-%d')
+            daily_games = self._get_scoreboard(date_str)
+            games.extend(daily_games)
+            current_date += timedelta(days=1)
+            time.sleep(0.6)  # Rate limiting (Ball Don't Lie has 100 requests/min limit)
 
-            return games
-
-        except (NBAAPITimeoutError, NBAAPIError) as e:
-            logger.warning(f"NBA Stats API failed: {e}. Attempting fallback to BallDontLie...")
-            if self.backup_client:
-                try:
-                    games = self.backup_client.get_games_last_n_days(days)
-                    logger.info(f"Successfully retrieved {len(games)} games from BallDontLie backup")
-                    return games
-                except Exception as backup_error:
-                    logger.error(f"BallDontLie backup also failed: {backup_error}")
-                    raise NBAAPIError("Both primary and backup data sources failed") from backup_error
-            else:
-                logger.error("No backup client available")
-                raise
+        return games
 
     def _get_scoreboard(self, game_date: str) -> List[Dict]:
         """
@@ -187,52 +121,49 @@ class NBAClient:
 
         # Cache miss - fetch from API
         try:
-            url = f"{self.BASE_URL}/scoreboardv3"
+            url = f"{self.BASE_URL}/games"
             params = {
-                'GameDate': game_date,
-                'LeagueID': '00'
+                'start_date': game_date,
+                'end_date': game_date
             }
 
-            logger.info(f"Fetching scoreboard for {game_date} from API...")
-            response = self._make_request(url, params=params)
+            logger.info(f"Fetching games for {game_date} from Ball Don't Lie API...")
+            response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
             games = []
-            scoreboard = data.get('scoreboard', {})
-
-            for game in scoreboard.get('games', []):
+            for game in data.get('data', []):
                 # Only include completed games
-                if game.get('gameStatus') != 3:  # 3 = Final
+                if game.get('status') != 'Final':
                     continue
 
-                home_team = game.get('homeTeam', {})
-                away_team = game.get('awayTeam', {})
+                home_team = game.get('home_team', {})
+                visitor_team = game.get('visitor_team', {})
+                home_score = game.get('home_team_score', 0)
+                visitor_score = game.get('visitor_team_score', 0)
 
                 game_info = {
-                    'game_id': game.get('gameId'),
+                    'game_id': str(game.get('id')),
                     'game_date': game_date,
                     'home_team': {
-                        'name': home_team.get('teamName'),
-                        'abbr': home_team.get('teamTricode'),
-                        'score': home_team.get('score', 0)
+                        'name': home_team.get('full_name'),
+                        'abbr': home_team.get('abbreviation'),
+                        'score': home_score
                     },
                     'away_team': {
-                        'name': away_team.get('teamName'),
-                        'abbr': away_team.get('teamTricode'),
-                        'score': away_team.get('score', 0)
+                        'name': visitor_team.get('full_name'),
+                        'abbr': visitor_team.get('abbreviation'),
+                        'score': visitor_score
                     },
-                    'total_points': home_team.get('score', 0) + away_team.get('score', 0),
-                    'final_margin': abs(home_team.get('score', 0) - away_team.get('score', 0))
+                    'total_points': home_score + visitor_score,
+                    'final_margin': abs(home_score - visitor_score),
+                    # Note: Ball Don't Lie doesn't provide play-by-play data
+                    # so we can't calculate actual lead changes
+                    'star_players_count': 0  # Will be populated if needed
                 }
 
-                # Fetch additional game details (play-by-play for lead changes)
-                game_details = self._get_game_details(game_info['game_id'])
-                if game_details:
-                    game_info.update(game_details)
-
                 games.append(game_info)
-                time.sleep(0.5)  # Rate limiting
 
             # Store in cache
             if self.cache and games:
@@ -240,177 +171,9 @@ class NBAClient:
 
             return games
 
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            logger.error(f"Timeout/Connection error fetching scoreboard for {game_date}: {e}")
-            raise NBAAPITimeoutError(f"Failed to fetch scoreboard for {game_date}") from e
         except Exception as e:
-            logger.error(f"Error fetching scoreboard for {game_date}: {e}")
-            raise NBAAPIError(f"Failed to fetch scoreboard for {game_date}") from e
-
-    def _get_game_details(self, game_id: str) -> Optional[Dict]:
-        """
-        Get detailed game information including lead changes.
-
-        Args:
-            game_id: NBA game ID
-
-        Returns:
-            Dictionary with game details
-        """
-        # Check cache first
-        if self.cache:
-            cached_details = self.cache.get_game_details(game_id, ttl_days=self.game_details_ttl_days)
-            if cached_details is not None:
-                return cached_details
-
-        # Cache miss - fetch from API
-        try:
-            # Get play-by-play data for lead changes
-            url = f"{self.BASE_URL}/playbyplayv3"
-            params = {
-                'GameID': game_id,
-                'EndPeriod': 10,
-                'StartPeriod': 1
-            }
-
-            logger.debug(f"Fetching game details for {game_id} from API...")
-            response = self._make_request(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-
-            lead_changes = self._calculate_lead_changes(data.get('game', {}).get('actions', []))
-
-            # Get box score for star players
-            star_count = self._get_star_players_count(game_id)
-
-            details = {
-                'lead_changes': lead_changes,
-                'star_players_count': star_count
-            }
-
-            # Store in cache
-            if self.cache:
-                self.cache.set_game_details(game_id, details)
-
-            return details
-
-        except Exception as e:
-            logger.error(f"Error fetching game details for {game_id}: {e}")
-            # Return defaults if API fails
-            return {
-                'lead_changes': 0,
-                'star_players_count': 0
-            }
-
-    def _calculate_lead_changes(self, actions: List[Dict]) -> int:
-        """
-        Calculate number of lead changes from play-by-play data.
-
-        Args:
-            actions: List of play-by-play actions
-
-        Returns:
-            Number of lead changes
-        """
-        if not actions:
-            return 0
-
-        lead_changes = 0
-        previous_leader = None
-
-        for action in actions:
-            # NBA API v3 uses 'scoreHome' and 'scoreAway', not 'homeScore'/'awayScore'
-            # Try the correct field names first, then fallback to test data format
-            home_score = action.get('scoreHome', action.get('homeScore', 0))
-            away_score = action.get('scoreAway', action.get('awayScore', 0))
-
-            # Handle case where scores might be strings
-            if isinstance(home_score, str):
-                home_score = int(home_score) if home_score else 0
-            if isinstance(away_score, str):
-                away_score = int(away_score) if away_score else 0
-
-            if home_score > away_score:
-                current_leader = 'home'
-            elif away_score > home_score:
-                current_leader = 'away'
-            else:
-                current_leader = 'tie'
-
-            if previous_leader and previous_leader != 'tie' and current_leader != 'tie':
-                if previous_leader != current_leader:
-                    lead_changes += 1
-
-            if current_leader != 'tie':
-                previous_leader = current_leader
-
-        return lead_changes
-
-    def _get_star_players_count(self, game_id: str) -> int:
-        """
-        Get count of star players who played in the game.
-
-        Args:
-            game_id: NBA game ID
-
-        Returns:
-            Count of star players
-        """
-        try:
-            url = f"{self.BASE_URL}/boxscoretraditionalv3"
-            params = {
-                'GameID': game_id,
-                'EndPeriod': 10,
-                'StartPeriod': 1
-            }
-
-            response = self._make_request(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-
-            star_count = 0
-            box_score = data.get('boxScoreTraditional', {})
-
-            # Players are nested under homeTeam and awayTeam in v3 API
-            home_players = box_score.get('homeTeam', {}).get('players', [])
-            away_players = box_score.get('awayTeam', {}).get('players', [])
-            all_players = home_players + away_players
-
-            logger.debug(f"Found {len(home_players)} home players and {len(away_players)} away players")
-
-            for player in all_players:
-                # NBA Stats API v3 uses firstName and familyName fields, not a single 'name' field
-                first_name = player.get('firstName', '')
-                family_name = player.get('familyName', '')
-                player_name = f"{first_name} {family_name}".strip()
-
-                if player_name in self.STAR_PLAYERS:
-                    star_count += 1
-                    logger.debug(f"Found star player: {player_name}")
-
-            logger.debug(f"Total star players found in game {game_id}: {star_count}")
-            return star_count
-
-        except Exception as e:
-            logger.error(f"Error fetching box score for {game_id}: {e}")
-            return 0
-
-    @retry_with_backoff(max_retries=2, base_delay=1.0)
-    def _make_request(self, url: str, params: Dict) -> requests.Response:
-        """
-        Make an HTTP request with retry logic and timeout.
-
-        Args:
-            url: The URL to request
-            params: Query parameters
-
-        Returns:
-            Response object
-
-        Raises:
-            requests.exceptions.RequestException: If request fails after retries
-        """
-        return self.session.get(url, params=params, timeout=10)
+            logger.error(f"Error fetching games for {game_date} from Ball Don't Lie: {e}")
+            raise NBAAPIError(f"Failed to fetch games for {game_date}") from e
 
     def _is_cache_valid(self) -> bool:
         """Check if the cache is still valid."""
@@ -421,57 +184,44 @@ class NBAClient:
 
     def _fetch_top_teams(self) -> Set[str]:
         """
-        Fetch current top 5 teams by win percentage from standings.
+        Get top 5 teams based on current standings from Ball Don't Lie API.
 
         Returns:
             Set of team abbreviations for top 5 teams
         """
         try:
-            # Get current season (e.g., "2024-25")
+            # Get current season
             now = datetime.now()
             if now.month >= 10:  # Season starts in October
-                season = f"{now.year}-{str(now.year + 1)[-2:]}"
+                season = now.year
             else:
-                season = f"{now.year - 1}-{str(now.year)[-2:]}"
+                season = now.year - 1
 
-            url = f"{self.BASE_URL}/leaguestandingsv3"
-            params = {
-                'LeagueID': '00',
-                'Season': season,
-                'SeasonType': 'Regular Season'
-            }
+            url = f"{self.BASE_URL}/standings"
+            params = {'season': season}
 
-            response = self._make_request(url, params=params)
+            logger.info(f"Fetching standings for {season} season...")
+            response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            # Extract standings data
-            standings = data.get('resultSets', [{}])[0].get('rowSet', [])
-            headers = data.get('resultSets', [{}])[0].get('headers', [])
+            # Sort by wins and get top 5
+            standings = data.get('data', [])
+            sorted_teams = sorted(standings, key=lambda x: x.get('wins', 0), reverse=True)
+            top_5 = {team['team']['abbreviation'] for team in sorted_teams[:5]}
 
-            # Find indices for team abbreviation and win percentage
-            team_abbr_idx = headers.index('TeamSlug') if 'TeamSlug' in headers else None
-            win_pct_idx = headers.index('WinPCT') if 'WinPCT' in headers else None
-
-            if team_abbr_idx is None or win_pct_idx is None:
-                raise ValueError("Required fields not found in standings data")
-
-            # Sort by win percentage and get top 5
-            sorted_teams = sorted(standings, key=lambda x: float(x[win_pct_idx]), reverse=True)
-            top_5 = {team[team_abbr_idx].upper() for team in sorted_teams[:5]}
-
-            logger.info(f"Dynamically fetched top 5 teams: {top_5}")
+            logger.info(f"Fetched top 5 teams from standings: {top_5}")
             return top_5
 
         except Exception as e:
-            logger.error(f"Error fetching top teams: {e}")
+            logger.error(f"Error fetching standings: {e}")
             logger.warning("Using fallback default top teams")
-            # Fallback to a reasonable default
+            # Fallback to reasonable defaults
             return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
 
     def _fetch_star_players(self) -> Set[str]:
         """
-        Fetch current star players based on league leaders in points per game.
+        Get star players based on season leaders from Ball Don't Lie API.
 
         Returns:
             Set of star player names (top 30 scorers)
@@ -479,50 +229,46 @@ class NBAClient:
         try:
             # Get current season
             now = datetime.now()
-            if now.month >= 10:
-                season = f"{now.year}-{str(now.year + 1)[-2:]}"
+            if now.month >= 10:  # Season starts in October
+                season = now.year
             else:
-                season = f"{now.year - 1}-{str(now.year)[-2:]}"
+                season = now.year - 1
 
-            url = f"{self.BASE_URL}/leagueleaders"
+            url = f"{self.BASE_URL}/leaders"
             params = {
-                'LeagueID': '00',
-                'PerMode': 'PerGame',
-                'Scope': 'S',
-                'Season': season,
-                'SeasonType': 'Regular Season',
-                'StatCategory': 'PTS'
+                'season': season,
+                'stat_type': 'pts'  # Points per game leaders
             }
 
-            response = self._make_request(url, params=params)
+            logger.info(f"Fetching season leaders for {season}...")
+            response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            # Extract player data
-            players = data.get('resultSet', {}).get('rowSet', [])
-            headers = data.get('resultSet', {}).get('headers', [])
-
-            # Find player name index
-            player_idx = headers.index('PLAYER') if 'PLAYER' in headers else None
-
-            if player_idx is None:
-                raise ValueError("Player field not found in leaders data")
-
             # Get top 30 scorers
-            star_players = {player[player_idx] for player in players[:30]}
+            leaders = data.get('data', [])
+            star_players = set()
+            for leader in leaders[:30]:
+                player = leader.get('player', {})
+                first_name = player.get('first_name', '')
+                last_name = player.get('last_name', '')
+                full_name = f"{first_name} {last_name}".strip()
+                if full_name:
+                    star_players.add(full_name)
 
-            logger.info(f"Dynamically fetched {len(star_players)} star players")
+            logger.info(f"Fetched {len(star_players)} star players from season leaders")
             return star_players
 
         except Exception as e:
             logger.error(f"Error fetching star players: {e}")
             logger.warning("Using fallback default star players")
-            # Fallback to a reasonable default
+            # Fallback to well-known players
             return {
                 'LeBron James', 'Stephen Curry', 'Kevin Durant', 'Giannis Antetokounmpo',
                 'Luka Doncic', 'Nikola Jokic', 'Joel Embiid', 'Jayson Tatum',
                 'Damian Lillard', 'Anthony Davis', 'Devin Booker', 'Kawhi Leonard',
-                'Jimmy Butler', 'Donovan Mitchell', 'Trae Young', 'Kyrie Irving'
+                'Jimmy Butler', 'Donovan Mitchell', 'Trae Young', 'Kyrie Irving',
+                'Shai Gilgeous-Alexander', 'Anthony Edwards', 'Tyrese Haliburton'
             }
 
     @property

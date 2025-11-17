@@ -12,7 +12,6 @@ class GameScorer:
         Args:
             config: Configuration dictionary with scoring weights
         """
-        self.lead_changes_weight = config.get('lead_changes_weight', 10)
         self.top5_team_bonus = config.get('top5_team_bonus', 50)
         self.close_game_bonus = config.get('close_game_bonus', 100)
         self.min_total_points = config.get('min_total_points', 200)
@@ -35,16 +34,7 @@ class GameScorer:
         score = 0
         breakdown = {}
 
-        # Criterion 1: Lead changes (more is better)
-        lead_changes = game.get('lead_changes', 0)
-        lead_score = lead_changes * self.lead_changes_weight
-        score += lead_score
-        breakdown['lead_changes'] = {
-            'count': lead_changes,
-            'points': lead_score
-        }
-
-        # Criterion 2: Top 5 team participation
+        # Criterion 1: Top 5 team participation
         home_abbr = game['home_team']['abbr']
         away_abbr = game['away_team']['abbr']
         top5_count = 0
@@ -62,7 +52,7 @@ class GameScorer:
             'points': top5_score
         }
 
-        # Criterion 3: Final margin (closer is better)
+        # Criterion 2: Final margin (closer is better)
         # Use exponential decay: closer games get more points
         # Max bonus at 0 margin, decreasing as margin increases
         margin = game.get('final_margin', 100)
@@ -83,7 +73,7 @@ class GameScorer:
             'points': close_score
         }
 
-        # Criterion 4: Minimum total points (200+)
+        # Criterion 3: Minimum total points (200+)
         total_points = game.get('total_points', 0)
         meets_threshold = total_points >= self.min_total_points
         breakdown['total_points'] = {
@@ -96,7 +86,7 @@ class GameScorer:
             score *= 0.1  # 90% penalty
             breakdown['total_points']['penalty_applied'] = True
 
-        # Criterion 5: Star power
+        # Criterion 4: Star power
         star_count = game.get('star_players_count', 0)
         star_score = star_count * self.star_power_weight
         score += star_score
