@@ -6,6 +6,7 @@ Find the most engaging NBA game to watch from the past week based on multiple cr
 
 - **Modular Architecture**: Run as CLI, REST API, Web Application, or TRMNL E-ink Display
 - **TRMNL Integration**: Display on your e-ink dashboard with multiple layout options
+- **TRMNL Screen Viewer**: Preview and test your TRMNL screens locally before deploying
 - **Smart Scoring Algorithm**: Evaluates games based on:
   - Lead changes (more exciting)
   - Top 5 team participation
@@ -86,6 +87,36 @@ uv run python src/interfaces/web/app.py
 ```
 
 Then open your browser to `http://localhost:8080`
+
+### TRMNL Screen Viewer
+
+Preview how your TRMNL screens will look before deploying!
+
+With the web server running, navigate to:
+```
+http://localhost:8080/trmnl-viewer
+```
+
+**Features**:
+- Preview all 4 layout types (full, half horizontal, half vertical, quadrant)
+- Test different parameters (days to look back, favorite team)
+- Live rendering with actual game data
+- Interactive controls with quick team presets
+- See exactly what will appear on your TRMNL e-ink display
+
+**Usage**:
+1. Start the web server: `uv run python src/interfaces/web/app.py`
+2. Open `http://localhost:8080/trmnl-viewer` in your browser
+3. Select a layout type from the dropdown
+4. Configure days to look back (1-14)
+5. Optionally set your favorite team (3-letter code)
+6. Click "Preview Screen" to see the rendered output
+
+This viewer is perfect for:
+- Testing your TRMNL plugin before deployment
+- Comparing different layout options
+- Verifying screen output with different parameters
+- Debugging template changes
 
 ### TRMNL E-ink Display
 
