@@ -47,17 +47,20 @@
 
 <style>
   .view--half-horizontal {
-    padding: 15px;
-    height: 100%;
+    width: 800px;
+    height: 400px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .header h2 {
-    font-size: 1.3rem;
+    font-size: 1rem;
     font-weight: bold;
-    margin: 0 0 1rem 0;
-    padding-bottom: 0.5rem;
+    margin: 0 0 0.6rem 0;
+    padding-bottom: 0.3rem;
     border-bottom: 2px solid #000;
     text-align: center;
   }
@@ -68,38 +71,38 @@
 
   .game-date {
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     opacity: 0.7;
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
   }
 
   .game-score {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1.5rem;
-    margin: 1.5rem 0;
+    gap: 1rem;
+    margin: 0.8rem 0;
   }
 
   .team {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
   }
 
   .team__abbr {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     font-weight: 600;
   }
 
   .team__score {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: bold;
   }
 
   .vs {
-    font-size: 1.2rem;
+    font-size: 1rem;
     opacity: 0.5;
   }
 
@@ -112,22 +115,22 @@
   }
 
   .empty__icon {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    margin-bottom: 0.3rem;
   }
 
   .empty__message {
-    font-size: 1.2rem;
+    font-size: 0.9rem;
     font-weight: 600;
     opacity: 0.6;
   }
 
   .footer {
     margin-top: auto;
-    padding-top: 0.8rem;
+    padding-top: 0.5rem;
     border-top: 1px solid #ddd;
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.6rem;
     opacity: 0.6;
   }
 
