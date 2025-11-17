@@ -24,7 +24,7 @@ class GameRecommender:
 
         # Use NBA Stats API as data source
         print("Using NBA Stats API as data source")
-        self.nba_client = NBAClient()
+        self.nba_client = NBAClient(config_path=config_path)
 
         self.scorer = GameScorer(self.config.get('scoring', {}))
         self.favorite_team = self.config.get('favorite_team')

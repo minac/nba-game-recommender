@@ -3,8 +3,10 @@ import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
 import time
+import yaml
 
 from src.utils.logger import get_logger
+from src.utils.cache import DateBasedCache
 
 logger = get_logger(__name__)
 
@@ -24,12 +26,43 @@ class NBAClient:
     # Cache duration in seconds (24 hours)
     CACHE_DURATION = 86400
 
-    def __init__(self):
-        """Initialize the NBA client."""
+    def __init__(self, config_path: str = 'config.yaml'):
+        """
+        Initialize the NBA client.
+
+        Args:
+            config_path: Path to configuration file
+        """
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 
-        # Cache for dynamic data
+        # Load configuration
+        try:
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                cache_config = config.get('cache', {})
+        except Exception as e:
+            logger.warning(f"Could not load config, using defaults: {e}")
+            cache_config = {}
+
+        # Initialize date-based cache
+        cache_enabled = cache_config.get('enabled', True)
+        cache_dir = cache_config.get('directory', '/tmp/nba_cache')
+        self.scoreboard_ttl_days = cache_config.get('scoreboard_ttl_days', 30)
+        self.game_details_ttl_days = cache_config.get('game_details_ttl_days', 30)
+
+        if cache_enabled:
+            self.cache = DateBasedCache(cache_dir=cache_dir)
+            logger.info(f"Date-based cache enabled: {cache_dir}")
+
+            # Auto cleanup expired cache if configured
+            if cache_config.get('auto_cleanup', True):
+                self.cache.clear_expired()
+        else:
+            self.cache = None
+            logger.info("Cache disabled")
+
+        # Cache for dynamic data (top teams and star players)
         self._top_teams_cache: Optional[Set[str]] = None
         self._star_players_cache: Optional[Set[str]] = None
         self._cache_timestamp: Optional[datetime] = None
@@ -69,6 +102,13 @@ class NBAClient:
         Returns:
             List of games for that date
         """
+        # Check cache first
+        if self.cache:
+            cached_games = self.cache.get_scoreboard(game_date, ttl_days=self.scoreboard_ttl_days)
+            if cached_games is not None:
+                return cached_games
+
+        # Cache miss - fetch from API
         try:
             url = f"{self.BASE_URL}/scoreboardv3"
             params = {
@@ -76,6 +116,7 @@ class NBAClient:
                 'LeagueID': '00'
             }
 
+            logger.info(f"Fetching scoreboard for {game_date} from API...")
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
@@ -116,6 +157,10 @@ class NBAClient:
                 games.append(game_info)
                 time.sleep(0.5)  # Rate limiting
 
+            # Store in cache
+            if self.cache and games:
+                self.cache.set_scoreboard(game_date, games)
+
             return games
 
         except Exception as e:
@@ -132,6 +177,13 @@ class NBAClient:
         Returns:
             Dictionary with game details
         """
+        # Check cache first
+        if self.cache:
+            cached_details = self.cache.get_game_details(game_id, ttl_days=self.game_details_ttl_days)
+            if cached_details is not None:
+                return cached_details
+
+        # Cache miss - fetch from API
         try:
             # Get play-by-play data for lead changes
             url = f"{self.BASE_URL}/playbyplayv3"
@@ -141,6 +193,7 @@ class NBAClient:
                 'StartPeriod': 1
             }
 
+            logger.debug(f"Fetching game details for {game_id} from API...")
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
@@ -150,10 +203,16 @@ class NBAClient:
             # Get box score for star players
             star_count = self._get_star_players_count(game_id)
 
-            return {
+            details = {
                 'lead_changes': lead_changes,
                 'star_players_count': star_count
             }
+
+            # Store in cache
+            if self.cache:
+                self.cache.set_game_details(game_id, details)
+
+            return details
 
         except Exception as e:
             logger.error(f"Error fetching game details for {game_id}: {e}")

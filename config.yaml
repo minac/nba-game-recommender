@@ -23,3 +23,11 @@ api:
 web:
   host: "0.0.0.0"
   port: 8080
+
+# Cache Configuration
+cache:
+  enabled: true                    # Enable/disable caching
+  directory: "/tmp/nba_cache"      # Cache storage directory
+  scoreboard_ttl_days: 30          # Cache scoreboards for 30 days (completed games don't change)
+  game_details_ttl_days: 30        # Cache game details for 30 days
+  auto_cleanup: true               # Automatically remove expired cache on startup
