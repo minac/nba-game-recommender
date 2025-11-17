@@ -11,6 +11,16 @@ from src.utils.cache import DateBasedCache
 logger = get_logger(__name__)
 
 
+class NBAAPIError(Exception):
+    """Custom exception for NBA API errors."""
+    pass
+
+
+class NBAAPITimeoutError(NBAAPIError):
+    """Exception raised when NBA API times out."""
+    pass
+
+
 def retry_with_backoff(max_retries: int = 3, base_delay: float = 1.0):
     """
     Decorator to retry a function with exponential backoff.
@@ -27,7 +37,11 @@ def retry_with_backoff(max_retries: int = 3, base_delay: float = 1.0):
                 except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                     if attempt == max_retries:
                         logger.error(f"{func.__name__} failed after {max_retries} retries: {e}")
-                        raise
+                        # Raise custom timeout error for better handling upstream
+                        raise NBAAPITimeoutError(
+                            f"NBA API is currently unavailable or too slow. "
+                            f"Request timed out after {max_retries} attempts."
+                        )
 
                     delay = base_delay * (2 ** attempt)
                     logger.warning(f"{func.__name__} attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
@@ -344,10 +358,10 @@ class NBAClient:
             logger.error(f"Error fetching box score for {game_id}: {e}")
             return 0
 
-    @retry_with_backoff(max_retries=3, base_delay=1.0)
+    @retry_with_backoff(max_retries=2, base_delay=1.0)
     def _make_request(self, url: str, params: Dict) -> requests.Response:
         """
-        Make an HTTP request with retry logic and increased timeout.
+        Make an HTTP request with retry logic and timeout.
 
         Args:
             url: The URL to request
@@ -359,7 +373,7 @@ class NBAClient:
         Raises:
             requests.exceptions.RequestException: If request fails after retries
         """
-        return self.session.get(url, params=params, timeout=30)
+        return self.session.get(url, params=params, timeout=10)
 
     def _is_cache_valid(self) -> bool:
         """Check if the cache is still valid."""

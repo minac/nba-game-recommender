@@ -59,6 +59,8 @@ def get_best_game():
             return jsonify(response), 400
         elif error_code == 'NO_GAMES':
             return jsonify(response), 404
+        elif error_code == 'NBA_API_TIMEOUT':
+            return jsonify(response), 503  # Service Unavailable
         else:
             return jsonify(response), 500
 
@@ -93,6 +95,8 @@ def get_all_games():
             return jsonify(response), 400
         elif error_code == 'NO_GAMES':
             return jsonify(response), 404
+        elif error_code == 'NBA_API_TIMEOUT':
+            return jsonify(response), 503  # Service Unavailable
         else:
             return jsonify(response), 500
 
