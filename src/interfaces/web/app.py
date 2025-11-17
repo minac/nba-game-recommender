@@ -35,6 +35,13 @@ def index():
     return render_template('index.html', config=config)
 
 
+@app.route('/api/health')
+def health():
+    """Health check endpoint."""
+    logger.info("GET /api/health")
+    return jsonify({'status': 'ok'})
+
+
 @app.route('/recommend', methods=['POST'])
 def recommend():
     """Get game recommendation based on user preferences."""
