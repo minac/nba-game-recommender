@@ -11,6 +11,35 @@ from src.utils.cache import DateBasedCache
 logger = get_logger(__name__)
 
 
+def retry_with_backoff(max_retries: int = 3, base_delay: float = 1.0):
+    """
+    Decorator to retry a function with exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay in seconds (doubles each retry)
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                    if attempt == max_retries:
+                        logger.error(f"{func.__name__} failed after {max_retries} retries: {e}")
+                        raise
+
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"{func.__name__} attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+                except Exception as e:
+                    # Don't retry on other exceptions
+                    raise
+            return None
+        return wrapper
+    return decorator
+
+
 class NBAClient:
     """Client for interacting with NBA stats API."""
 
@@ -117,7 +146,7 @@ class NBAClient:
             }
 
             logger.info(f"Fetching scoreboard for {game_date} from API...")
-            response = self.session.get(url, params=params, timeout=10)
+            response = self._make_request(url, params=params)
             response.raise_for_status()
             data = response.json()
 
@@ -194,7 +223,7 @@ class NBAClient:
             }
 
             logger.debug(f"Fetching game details for {game_id} from API...")
-            response = self.session.get(url, params=params, timeout=10)
+            response = self._make_request(url, params=params)
             response.raise_for_status()
             data = response.json()
 
@@ -284,7 +313,7 @@ class NBAClient:
                 'StartPeriod': 1
             }
 
-            response = self.session.get(url, params=params, timeout=10)
+            response = self._make_request(url, params=params)
             response.raise_for_status()
             data = response.json()
 
@@ -315,6 +344,23 @@ class NBAClient:
             logger.error(f"Error fetching box score for {game_id}: {e}")
             return 0
 
+    @retry_with_backoff(max_retries=3, base_delay=1.0)
+    def _make_request(self, url: str, params: Dict) -> requests.Response:
+        """
+        Make an HTTP request with retry logic and increased timeout.
+
+        Args:
+            url: The URL to request
+            params: Query parameters
+
+        Returns:
+            Response object
+
+        Raises:
+            requests.exceptions.RequestException: If request fails after retries
+        """
+        return self.session.get(url, params=params, timeout=30)
+
     def _is_cache_valid(self) -> bool:
         """Check if the cache is still valid."""
         if self._cache_timestamp is None:
@@ -344,7 +390,7 @@ class NBAClient:
                 'SeasonType': 'Regular Season'
             }
 
-            response = self.session.get(url, params=params, timeout=10)
+            response = self._make_request(url, params=params)
             response.raise_for_status()
             data = response.json()
 
@@ -397,7 +443,7 @@ class NBAClient:
                 'StatCategory': 'PTS'
             }
 
-            response = self.session.get(url, params=params, timeout=10)
+            response = self._make_request(url, params=params)
             response.raise_for_status()
             data = response.json()
 
