@@ -9,7 +9,7 @@
       </div>
 
       <!-- Content -->
-      <div class="content">
+      <div class="content flex-grow">
 
         <!-- Date -->
         <div class="game-date">{{ game.game_date }}</div>
@@ -25,25 +25,11 @@
           </div>
         </div>
 
-        <!-- Engagement Score -->
-        <div class="engagement">
-          <span class="engagement__label">Score:</span>
-          <span class="engagement__value">{{ score }}</span>
-        </div>
+      </div>
 
-        <!-- Key Stats -->
-        <div class="stats">
-          <div class="stat">
-            <span class="stat__label">Lead Changes:</span>
-            <span class="stat__value">{{ breakdown.lead_changes.count }}</span>
-          </div>
-          {% if breakdown.favorite_team.has_favorite %}
-          <div class="stat stat--highlight">
-            <span>⭐ Favorite Team</span>
-          </div>
-          {% endif %}
-        </div>
-
+      <!-- Footer -->
+      <div class="footer">
+        <p>Updated: {{ updated_at | default: "recently" }}</p>
       </div>
 
     {% else %}
@@ -63,6 +49,8 @@
   .view--half-horizontal {
     padding: 15px;
     height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .header h2 {
@@ -72,6 +60,10 @@
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #000;
     text-align: center;
+  }
+
+  .flex-grow {
+    flex-grow: 1;
   }
 
   .game-date {
@@ -111,56 +103,6 @@
     opacity: 0.5;
   }
 
-  .engagement {
-    text-align: center;
-    padding: 1rem;
-    margin: 1rem 0;
-    border: 2px solid #000;
-    border-radius: 6px;
-    background: #f5f5f5;
-  }
-
-  .engagement__label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-right: 0.5rem;
-  }
-
-  .engagement__value {
-    font-size: 1.8rem;
-    font-weight: bold;
-  }
-
-  .stats {
-    margin-top: 1rem;
-  }
-
-  .stat {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.6rem 0.8rem;
-    border-bottom: 1px solid #ddd;
-    font-size: 0.9rem;
-  }
-
-  .stat:last-child {
-    border-bottom: none;
-  }
-
-  .stat--highlight {
-    background: #f0f0f0;
-    font-weight: 600;
-    justify-content: center;
-  }
-
-  .stat__label {
-    font-weight: 500;
-  }
-
-  .stat__value {
-    font-weight: 600;
-  }
-
   .empty {
     display: flex;
     flex-direction: column;
@@ -178,5 +120,18 @@
     font-size: 1.2rem;
     font-weight: 600;
     opacity: 0.6;
+  }
+
+  .footer {
+    margin-top: auto;
+    padding-top: 0.8rem;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
+  .footer p {
+    margin: 0;
   }
 </style>
