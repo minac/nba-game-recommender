@@ -180,8 +180,16 @@ class NBAClient:
         previous_leader = None
 
         for action in actions:
-            home_score = action.get('homeScore', 0)
-            away_score = action.get('awayScore', 0)
+            # NBA API v3 uses 'scoreHome' and 'scoreAway', not 'homeScore'/'awayScore'
+            # Try the correct field names first, then fallback to test data format
+            home_score = action.get('scoreHome', action.get('homeScore', 0))
+            away_score = action.get('scoreAway', action.get('awayScore', 0))
+
+            # Handle case where scores might be strings
+            if isinstance(home_score, str):
+                home_score = int(home_score) if home_score else 0
+            if isinstance(away_score, str):
+                away_score = int(away_score) if away_score else 0
 
             if home_score > away_score:
                 current_leader = 'home'
