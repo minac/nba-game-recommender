@@ -14,26 +14,13 @@ sys.path.insert(0, str(project_root))
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
     """Set up test environment before any tests run."""
-    # Clean up any existing test cache
-    test_cache_dir = Path('/tmp/nba_cache')
-    if test_cache_dir.exists():
-        shutil.rmtree(test_cache_dir)
+    # Allow cache to persist across tests for better performance with real API calls
+    # This helps avoid rate limiting and speeds up test execution
     yield
-    # Clean up after all tests
-    if test_cache_dir.exists():
-        shutil.rmtree(test_cache_dir)
-
-
-@pytest.fixture(autouse=True)
-def clean_cache_before_test():
-    """Clean cache before each test to ensure isolation."""
-    test_cache_dir = Path('/tmp/nba_cache')
-    if test_cache_dir.exists():
-        shutil.rmtree(test_cache_dir)
-    yield
-    # Clean up after test
-    if test_cache_dir.exists():
-        shutil.rmtree(test_cache_dir)
+    # Optionally clean up after all tests (commented out to preserve cache)
+    # test_cache_dir = Path('/tmp/nba_cache')
+    # if test_cache_dir.exists():
+    #     shutil.rmtree(test_cache_dir)
 
 
 @pytest.fixture
