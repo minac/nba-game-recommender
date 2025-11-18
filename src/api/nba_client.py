@@ -383,81 +383,78 @@ class NBAClient:
 
     def _fetch_top_teams(self) -> Set[str]:
         """
-        Get top 5 teams based on current standings from Ball Don't Lie API.
+        Get top 5 teams based on current standings from NBA official API.
+        Try once, fallback to static list if it fails (API is unreliable).
 
         Returns:
             Set of team abbreviations for top 5 teams
         """
-        # Get current season
-        now = datetime.now()
-        if now.month >= 10:  # Season starts in October
-            season = now.year
-        else:
-            season = now.year - 1
+        # Fallback static list (current top teams as of 2024-25 season)
+        fallback_teams = {'BOS', 'CLE', 'OKC', 'NYK', 'DEN'}
 
-        # Skip API call for 2025 season (requires premium plan) - use fallback
-        if season >= 2025:
-            logger.info(f"2025 season standings require premium plan. Using fallback defaults.")
-            return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
+        try:
+            # Get current season string (e.g., "2024-25")
+            now = datetime.now()
+            if now.month >= 10:  # Season starts in October
+                season_year = now.year
+            else:
+                season_year = now.year - 1
+            season_str = f"{season_year}-{str(season_year + 1)[-2:]}"
 
-        # Check rate limiting before making API call
-        if self._is_rate_limited('standings'):
-            stats = self._get_rate_limit_stats('standings')
-            logger.info(f"Rate limited ({stats['calls_made']}/{stats['max_calls']} calls used). Returning cached top teams.")
-            # Return cached data if available, otherwise use fallback
-            if self._top_teams_cache is not None:
-                return self._top_teams_cache
-            logger.warning(f"No cached data available, using fallback defaults. Window resets at {stats['window_resets_at']}")
-            return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
+            # NBA official stats API endpoint
+            url = "https://stats.nba.com/stats/leaguestandingsv3"
+            params = {
+                'LeagueID': '00',
+                'Season': season_str,
+                'SeasonType': 'Regular Season'
+            }
 
-        max_retries = 3
-        retry_delay = 2
+            # NBA API requires specific headers
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.nba.com/',
+                'Origin': 'https://www.nba.com',
+                'Accept': 'application/json'
+            }
 
-        for attempt in range(max_retries):
+            logger.info(f"Attempting to fetch standings for {season_str} season from NBA official API...")
+            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            # Parse standings data
+            result_sets = data.get('resultSets', [])
+            if not result_sets:
+                logger.warning("No result sets in NBA API response, using fallback")
+                return fallback_teams
+
+            standings_data = result_sets[0]
+            headers_list = standings_data.get('headers', [])
+            rows = standings_data.get('rowSet', [])
+
+            if not rows:
+                logger.warning("No standings rows in NBA API response, using fallback")
+                return fallback_teams
+
+            # Find indices for team abbreviation and win percentage
             try:
-                url = f"{self.BASE_URL}/standings"
-                params = {'season': season}
+                team_abbr_idx = headers_list.index('TeamSlug')
+                win_pct_idx = headers_list.index('WinPCT')
+            except ValueError:
+                logger.warning("Could not find required columns in NBA API response, using fallback")
+                return fallback_teams
 
-                logger.info(f"Fetching standings for {season} season (attempt {attempt + 1}/{max_retries})...")
-                response = self.session.get(url, params=params, timeout=10)
+            # Sort by win percentage and get top 5
+            sorted_teams = sorted(rows, key=lambda x: x[win_pct_idx], reverse=True)
+            top_5 = {row[team_abbr_idx] for row in sorted_teams[:5]}
 
-                # Handle rate limiting and temporary server errors
-                if response.status_code in [429, 503, 504]:
-                    if attempt < max_retries - 1:
-                        wait_time = retry_delay * (2 ** attempt)
-                        status_msg = {429: "Rate limited", 503: "Service unavailable", 504: "Gateway timeout"}
-                        logger.warning(f"{status_msg.get(response.status_code, 'Error')} ({response.status_code}). Waiting {wait_time}s before retry...")
-                        time.sleep(wait_time)
-                        continue
+            logger.info(f"Successfully fetched top 5 teams from NBA API: {top_5}")
+            return top_5
 
-                response.raise_for_status()
-                data = response.json()
-
-                # Sort by wins and get top 5
-                standings = data.get('data', [])
-                sorted_teams = sorted(standings, key=lambda x: x.get('wins', 0), reverse=True)
-                top_5 = {team['team']['abbreviation'] for team in sorted_teams[:5]}
-
-                logger.info(f"Fetched top 5 teams from standings: {top_5}")
-
-                # Update rate limit timestamp after successful API call
-                self._update_rate_limit_timestamp('standings')
-
-                return top_5
-
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Error fetching standings (attempt {attempt + 1}): {e}")
-                    time.sleep(retry_delay)
-                    continue
-                else:
-                    logger.error(f"Error fetching standings after {max_retries} attempts: {e}")
-                    logger.warning("Using fallback default top teams")
-                    # Fallback to reasonable defaults
-                    return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
-
-        # Fallback if all retries failed
-        return {'BOS', 'DEN', 'MIL', 'PHX', 'LAL'}
+        except Exception as e:
+            logger.warning(f"Error fetching standings from NBA official API: {e}")
+            logger.info(f"Using fallback top teams: {fallback_teams}")
+            return fallback_teams
 
     def _fetch_star_players(self) -> Set[str]:
         """
