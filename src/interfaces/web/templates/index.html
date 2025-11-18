@@ -451,11 +451,11 @@
                         </div>
                         <div class="game-item-details">
                             ${game.game_date} |
-                            Top 5 Teams: ${breakdown.top5_teams.count} (${breakdown.top5_teams.points.toFixed(1)} pts) |
-                            Closeness: ${breakdown.close_game.points.toFixed(1)} pts |
-                            Total: ${breakdown.total_points.threshold_met ? breakdown.total_points.points + ' pts ✓' : '0.0 pts (<200)'} |
-                            Stars: ${breakdown.star_power.count} (${breakdown.star_power.points.toFixed(1)} pts) |
-                            Favorite: ${breakdown.favorite_team.has_favorite ? 'Yes' : 'No'} (${breakdown.favorite_team.points.toFixed(1)} pts)
+                            Top 5 Teams: ${Math.round(breakdown.top5_teams.points)}pts |
+                            Final result close: ${Math.round(breakdown.close_game.points)}pts |
+                            Total game pts: ${breakdown.total_points.threshold_met ? Math.round(breakdown.total_points.points) : '0'}pts |
+                            Star players: ${Math.round(breakdown.star_power.points)}pts |
+                            Favorite team: ${Math.round(breakdown.favorite_team.points)}pts
                         </div>
                     </div>
                 `;
