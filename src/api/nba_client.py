@@ -102,7 +102,8 @@ class NBAClient:
         Returns:
             List of game dictionaries with detailed information
         """
-        end_date = datetime.now()
+        # Start from yesterday to avoid checking today's incomplete games
+        end_date = datetime.now() - timedelta(days=1)
         start_date = end_date - timedelta(days=days)
 
         games = []
