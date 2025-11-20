@@ -182,6 +182,13 @@ class NBAClient:
             response.raise_for_status()
             data = response.json()
 
+            # Check for error in response body (don't cache error responses)
+            if 'error' in data or 'message' in data:
+                logger.warning(f"API returned error response for batch stats: {data.get('error') or data.get('message')}")
+                for game_id in uncached_ids:
+                    result[game_id] = 0
+                return result
+
             # Update rate limit timestamp after successful API call
             self._update_rate_limit_timestamp('stats')
 
@@ -265,6 +272,11 @@ class NBAClient:
 
             response.raise_for_status()
             data = response.json()
+
+            # Check for error in response body (don't cache error responses)
+            if 'error' in data or 'message' in data:
+                logger.warning(f"API returned error response for stats game {game_id}: {data.get('error') or data.get('message')}")
+                return 0
 
             # Update rate limit timestamp after successful API call
             self._update_rate_limit_timestamp('stats')
@@ -357,6 +369,11 @@ class NBAClient:
 
                 response.raise_for_status()
                 data = response.json()
+
+                # Check for error in response body (don't cache error responses)
+                if 'error' in data or 'message' in data:
+                    logger.warning(f"API returned error response for {game_date}: {data.get('error') or data.get('message')}")
+                    return [], False
 
                 # First pass: collect all completed games and their IDs
                 raw_games = []
@@ -654,6 +671,22 @@ class NBAClient:
 
                 response.raise_for_status()
                 data = response.json()
+
+                # Check for error in response body (don't cache error responses)
+                if 'error' in data or 'message' in data:
+                    logger.warning(f"API returned error response for leaders: {data.get('error') or data.get('message')}")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        # Return fallback on final attempt
+                        return {
+                            'LeBron James', 'Stephen Curry', 'Kevin Durant', 'Giannis Antetokounmpo',
+                            'Luka Doncic', 'Nikola Jokic', 'Joel Embiid', 'Jayson Tatum',
+                            'Damian Lillard', 'Anthony Davis', 'Devin Booker', 'Kawhi Leonard',
+                            'Jimmy Butler', 'Donovan Mitchell', 'Trae Young', 'Kyrie Irving',
+                            'Shai Gilgeous-Alexander', 'Anthony Edwards', 'Tyrese Haliburton'
+                        }
 
                 # Get top 30 scorers
                 leaders = data.get('data', [])
