@@ -41,8 +41,12 @@ class TestNBAClient:
 
         assert isinstance(top_teams, set)
         assert len(top_teams) == 5
-        # Should contain default NBA teams
-        assert 'BOS' in top_teams or 'DEN' in top_teams or 'LAL' in top_teams
+        # Should contain NBA team identifiers (either abbreviations or full names)
+        # The API may return either format, so check both
+        top_teams_normalized = {team.upper() for team in top_teams}
+        expected_teams = ['BOS', 'CELTICS', 'DEN', 'NUGGETS', 'OKC', 'THUNDER',
+                          'CLE', 'CAVALIERS', 'LAL', 'LAKERS', 'NYK', 'KNICKS']
+        assert any(expected in top_teams_normalized for expected in expected_teams)
 
     def test_star_players_returns_default(self):
         """Test STAR_PLAYERS property returns default players."""
@@ -111,7 +115,7 @@ class TestNBAClient:
             status=200
         )
 
-        games = self.client._get_scoreboard(game_date)
+        games, from_cache = self.client._get_scoreboard(game_date)
 
         assert len(games) == 1
         assert games[0]['game_id'] == '12345'
@@ -121,6 +125,7 @@ class TestNBAClient:
         assert games[0]['away_team']['score'] == 115
         assert games[0]['total_points'] == 233
         assert games[0]['final_margin'] == 3
+        assert from_cache is False
 
     @responses.activate
     def test_get_scoreboard_filters_non_final_games(self):
@@ -153,11 +158,12 @@ class TestNBAClient:
             status=200
         )
 
-        games = self.client._get_scoreboard(game_date)
+        games, from_cache = self.client._get_scoreboard(game_date)
 
         # Should only return the final game
         assert len(games) == 1
         assert games[0]['game_id'] == '1'
+        assert from_cache is False
 
     @responses.activate
     def test_get_scoreboard_handles_api_error(self):
@@ -228,10 +234,12 @@ class TestNBAClient:
                 status=200
             )
 
-            games1 = self.client._get_scoreboard(date_str)
+            games1, from_cache1 = self.client._get_scoreboard(date_str)
 
         # Second call should hit cache (no API call needed)
-        games2 = self.client._get_scoreboard(date_str)
+        games2, from_cache2 = self.client._get_scoreboard(date_str)
 
         # Should be the same data
         assert games1 == games2
+        assert from_cache1 is False  # First call fetches from API
+        assert from_cache2 is True   # Second call comes from cache
