@@ -17,6 +17,7 @@ class GameScorer:
         self.min_total_points = config.get('min_total_points', 200)
         self.high_score_bonus = config.get('high_score_bonus', 10)
         self.star_power_weight = config.get('star_power_weight', 20)
+        self.lead_changes_weight = config.get('lead_changes_weight', 10)
         self.favorite_team_bonus = config.get('favorite_team_bonus', 75)
 
     def score_game(self, game: Dict, favorite_team: Optional[str] = None,
@@ -92,6 +93,15 @@ class GameScorer:
         breakdown['star_power'] = {
             'count': star_count,
             'points': star_score
+        }
+
+        # Criterion 5: Lead changes (based on quarter scoring)
+        lead_changes = game.get('lead_changes', 0)
+        lead_changes_score = lead_changes * self.lead_changes_weight
+        score += lead_changes_score
+        breakdown['lead_changes'] = {
+            'count': lead_changes,
+            'points': lead_changes_score
         }
 
         # Criterion 6: Favorite team bonus

@@ -45,6 +45,7 @@ def sample_config():
         'top5_team_bonus': 50,
         'close_game_bonus': 100,
         'min_total_points': 200,
+        'high_score_bonus': 10,
         'star_power_weight': 20,
         'favorite_team_bonus': 75
     }

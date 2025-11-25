@@ -313,6 +313,60 @@ class NBAClient:
             # Return 0 on error to not break the flow
             return 0
 
+    def _calculate_lead_changes(self, quarter_scores: Dict[str, List[Optional[int]]]) -> int:
+        """
+        Calculate lead changes based on quarter-by-quarter scoring.
+
+        Args:
+            quarter_scores: Dictionary with 'home' and 'visitor' keys,
+                          each containing a list of quarter scores (including OT)
+
+        Returns:
+            Number of lead changes between quarters
+        """
+        home_quarters = quarter_scores.get('home', [])
+        visitor_quarters = quarter_scores.get('visitor', [])
+
+        # If quarter data is missing or incomplete, return 0
+        if not home_quarters or not visitor_quarters:
+            return 0
+
+        # Filter out None values (overtime periods that weren't played)
+        home_quarters = [q for q in home_quarters if q is not None]
+        visitor_quarters = [q for q in visitor_quarters if q is not None]
+
+        # Need at least regular time quarters to calculate
+        if len(home_quarters) < 4 or len(visitor_quarters) < 4:
+            return 0
+
+        lead_changes = 0
+        previous_leader = None  # 'home', 'visitor', or 'tied'
+
+        # Calculate cumulative scores after each quarter
+        home_cumulative = 0
+        visitor_cumulative = 0
+
+        for i in range(min(len(home_quarters), len(visitor_quarters))):
+            home_cumulative += home_quarters[i]
+            visitor_cumulative += visitor_quarters[i]
+
+            # Determine current leader
+            if home_cumulative > visitor_cumulative:
+                current_leader = 'home'
+            elif visitor_cumulative > home_cumulative:
+                current_leader = 'visitor'
+            else:
+                current_leader = 'tied'
+
+            # Check if lead changed (don't count first quarter or tied games)
+            if previous_leader is not None and previous_leader != 'tied' and current_leader != 'tied':
+                if previous_leader != current_leader:
+                    lead_changes += 1
+
+            previous_leader = current_leader
+
+        return lead_changes
+
     def _get_scoreboard(self, game_date: str) -> tuple[List[Dict], bool]:
         """
         Get scoreboard for a specific date.
@@ -400,6 +454,31 @@ class NBAClient:
                     game_id = str(game.get('id'))
                     star_players_count = star_counts.get(game_id, 0)
 
+                    # Extract quarter scores (available for 2023 season and beyond)
+                    quarter_scores = {
+                        'home': [
+                            game.get('home_q1'),
+                            game.get('home_q2'),
+                            game.get('home_q3'),
+                            game.get('home_q4'),
+                            game.get('home_ot1'),
+                            game.get('home_ot2'),
+                            game.get('home_ot3')
+                        ],
+                        'visitor': [
+                            game.get('visitor_q1'),
+                            game.get('visitor_q2'),
+                            game.get('visitor_q3'),
+                            game.get('visitor_q4'),
+                            game.get('visitor_ot1'),
+                            game.get('visitor_ot2'),
+                            game.get('visitor_ot3')
+                        ]
+                    }
+
+                    # Calculate lead changes from quarter scores
+                    lead_changes = self._calculate_lead_changes(quarter_scores)
+
                     game_info = {
                         'game_id': game_id,
                         'game_date': game_date,
@@ -415,8 +494,8 @@ class NBAClient:
                         },
                         'total_points': home_score + visitor_score,
                         'final_margin': abs(home_score - visitor_score),
-                        # Note: Ball Don't Lie doesn't provide play-by-play data
-                        # so we can't calculate actual lead changes
+                        'quarter_scores': quarter_scores,
+                        'lead_changes': lead_changes,
                         'star_players_count': star_players_count
                     }
 

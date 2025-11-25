@@ -24,7 +24,8 @@ def get_sample_game(
     lead_changes=12,
     star_players=4,
     game_date='2024-01-15',
-    game_id='0022300123'
+    game_id='0022300123',
+    quarter_scores=None
 ):
     """
     Create a sample game dictionary.
@@ -38,10 +39,29 @@ def get_sample_game(
         star_players: Number of star players
         game_date: Game date string
         game_id: Game ID
+        quarter_scores: Optional dict with 'home' and 'visitor' quarter scores
 
     Returns:
         Game dictionary
     """
+    # Generate realistic quarter scores if not provided
+    if quarter_scores is None:
+        # Distribute scores across quarters (rough approximation)
+        home_q1 = int(home_score * 0.25)
+        home_q2 = int(home_score * 0.24)
+        home_q3 = int(home_score * 0.26)
+        home_q4 = home_score - (home_q1 + home_q2 + home_q3)
+
+        away_q1 = int(away_score * 0.24)
+        away_q2 = int(away_score * 0.26)
+        away_q3 = int(away_score * 0.25)
+        away_q4 = away_score - (away_q1 + away_q2 + away_q3)
+
+        quarter_scores = {
+            'home': [home_q1, home_q2, home_q3, home_q4, None, None, None],
+            'visitor': [away_q1, away_q2, away_q3, away_q4, None, None, None]
+        }
+
     return {
         'game_id': game_id,
         'game_date': game_date,
@@ -57,6 +77,7 @@ def get_sample_game(
         },
         'total_points': home_score + away_score,
         'final_margin': abs(home_score - away_score),
+        'quarter_scores': quarter_scores,
         'lead_changes': lead_changes,
         'star_players_count': star_players
     }
@@ -69,6 +90,7 @@ def get_sample_config():
         'top5_team_bonus': 50,
         'close_game_bonus': 100,
         'min_total_points': 200,
+        'high_score_bonus': 10,
         'star_power_weight': 20,
         'favorite_team_bonus': 75
     }
