@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Scout Dashboard</title>
+    <title>NBA Game Recommender</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom styles for slider */
@@ -12,7 +12,7 @@
             width: 100%;
             height: 6px;
             border-radius: 5px;
-            background: #374151;
+            background: transparent;
             outline: none;
         }
 
@@ -71,7 +71,7 @@
             <div class="bg-gray-800 rounded-2xl p-8 shadow-xl">
                 <div class="flex items-center gap-3 mb-2">
                     <span class="text-5xl">🏀</span>
-                    <h1 class="text-4xl font-bold">NBA Scout Dashboard</h1>
+                    <h1 class="text-4xl font-bold">NBA Game Recommender</h1>
                 </div>
                 <p class="text-gray-400 ml-16">Find the most engaging game from the past week.</p>
 
@@ -95,7 +95,7 @@
 
                     <!-- Favorite Team -->
                     <div>
-                        <label class="block text-sm text-gray-400 mb-2">Favorite Team (e.g. LAL)</label>
+                        <label class="block text-sm text-gray-400 mb-2">Favorite Team <span class="text-gray-500">(optional)</span></label>
                         <div class="relative">
                             <input
                                 type="text"
