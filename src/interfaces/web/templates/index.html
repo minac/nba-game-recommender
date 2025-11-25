@@ -3,348 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Game Recommender</title>
+    <title>NBA Scout Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #333;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-
-        header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #555;
-        }
-
-        input[type="number"],
-        input[type="text"],
-        select {
+        /* Custom styles for slider */
+        input[type="range"] {
+            -webkit-appearance: none;
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        input:focus,
-        select:focus {
+            height: 6px;
+            border-radius: 5px;
+            background: #374151;
             outline: none;
-            border-color: #2a5298;
         }
 
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .checkbox-group input[type="checkbox"] {
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
             width: 20px;
             height: 20px;
-            cursor: pointer;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #f37335 0%, #fdc830 100%);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            width: 100%;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            display: none;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #2a5298;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Golden glow animation for top game */
+        @keyframes golden-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.8); }
+        }
+
+        .golden-border {
+            border: 2px solid #fbbf24;
+            animation: golden-glow 2s ease-in-out infinite;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        .results {
-            display: none;
-        }
-
-        .game-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-
-        .game-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .game-title {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .game-date {
-            opacity: 0.9;
-            font-size: 1.1em;
-        }
-
-        .score-display {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 30px;
-            margin: 30px 0;
-            font-size: 2em;
-            font-weight: bold;
-        }
-
-        .team {
-            text-align: center;
-        }
-
-        .team-score {
-            font-size: 1.5em;
-            margin-top: 10px;
-        }
-
-        .vs {
-            opacity: 0.7;
-        }
-
-        .engagement-score {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .engagement-score h3 {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-
-        .engagement-score .score {
-            font-size: 3em;
-            font-weight: bold;
-        }
-
-        .breakdown {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 20px;
-        }
-
-        .breakdown h4 {
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-
-        .breakdown-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .breakdown-item:last-child {
-            border-bottom: none;
-        }
-
-        .games-list {
-            margin-top: 20px;
-        }
-
-        .game-item {
-            background: #f8f9fa;
-            border-left: 4px solid #2a5298;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            transition: transform 0.2s;
-        }
-
-        .game-item:hover {
-            transform: translateX(5px);
-        }
-
-        .game-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .game-item-score {
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-
-        .game-item-engagement {
-            color: #2a5298;
-            font-weight: 600;
-        }
-
-        .game-item-details {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            header h1 {
-                font-size: 2em;
-            }
-
-            .score-display {
-                font-size: 1.5em;
-            }
-
-            .card {
-                padding: 20px;
-            }
-        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🏀 NBA Game Recommender</h1>
-            <p>Find the most engaging game from the past week</p>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="bg-gray-800 rounded-2xl p-8 shadow-xl">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-5xl">🏀</span>
+                    <h1 class="text-4xl font-bold">NBA Scout Dashboard</h1>
+                </div>
+                <p class="text-gray-400 ml-16">Find the most engaging game from the past week.</p>
+
+                <!-- Controls -->
+                <div class="mt-6 grid md:grid-cols-3 gap-4 items-end">
+                    <!-- Days Slider -->
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Last X Days</label>
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between text-xs text-gray-500 mb-2">
+                                <span>1</span>
+                                <span>3</span>
+                                <span>7</span>
+                                <span>8</span>
+                                <span>14</span>
+                            </div>
+                            <input type="range" id="daysSlider" min="1" max="14" value="7" class="w-full">
+                            <div class="text-center mt-2 text-2xl font-bold" id="daysValue">7</div>
+                        </div>
+                    </div>
+
+                    <!-- Favorite Team -->
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Favorite Team (e.g. LAL)</label>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="favoriteTeam"
+                                placeholder="GSW"
+                                maxlength="3"
+                                class="w-full bg-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
+                            >
+                            <span id="teamCheck" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-400 hidden">✓</span>
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex gap-2">
+                        <button
+                            id="fullRankingsBtn"
+                            class="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                        >
+                            <span>📊</span>
+                            <span>Full Rankings</span>
+                        </button>
+                        <button
+                            id="findBestBtn"
+                            class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all font-semibold"
+                        >
+                            <span>🔥</span>
+                            <span>Find Best Game</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </header>
 
-        <div class="card">
-            <form id="recommendForm">
-                <div class="form-group">
-                    <label for="days">Days to Look Back:</label>
-                    <input type="number" id="days" name="days" min="1" max="30" value="7" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="favoriteTeam">Favorite Team (Optional):</label>
-                    <input type="text" id="favoriteTeam" name="favoriteTeam" placeholder="e.g., LAL, BOS, GSW" maxlength="3">
-                    <small style="color: #666;">Enter 3-letter team abbreviation for bonus points</small>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="showAll" name="showAll">
-                    <label for="showAll" style="margin-bottom: 0;">Show all games ranked</label>
-                </div>
-
-                <button type="submit" class="btn">Find Best Game</button>
-            </form>
+        <!-- Loading State -->
+        <div id="loading" class="hidden">
+            <div class="bg-gray-800 rounded-2xl p-12 text-center">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="text-gray-400">Analyzing NBA games...</p>
+            </div>
         </div>
 
-        <div class="error" id="error"></div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing NBA games...</p>
+        <!-- Error State -->
+        <div id="error" class="hidden bg-red-900/50 border border-red-500 rounded-2xl p-4 mb-4">
+            <p id="errorMessage" class="text-red-200"></p>
         </div>
 
-        <div class="results" id="results"></div>
+        <!-- Results Container -->
+        <div id="results"></div>
     </div>
 
     <script>
-        const form = document.getElementById('recommendForm');
+        // Elements
+        const daysSlider = document.getElementById('daysSlider');
+        const daysValue = document.getElementById('daysValue');
+        const favoriteTeam = document.getElementById('favoriteTeam');
+        const teamCheck = document.getElementById('teamCheck');
+        const findBestBtn = document.getElementById('findBestBtn');
+        const fullRankingsBtn = document.getElementById('fullRankingsBtn');
         const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
         const results = document.getElementById('results');
-        const errorDiv = document.getElementById('error');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Update days value display
+        daysSlider.addEventListener('input', (e) => {
+            daysValue.textContent = e.target.value;
+        });
 
-            const days = document.getElementById('days').value;
-            const favoriteTeam = document.getElementById('favoriteTeam').value.trim().toUpperCase();
-            const showAll = document.getElementById('showAll').checked;
+        // Show checkmark when team is entered
+        favoriteTeam.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            if (value.length === 3) {
+                teamCheck.classList.remove('hidden');
+            } else {
+                teamCheck.classList.add('hidden');
+            }
+        });
 
-            // Hide previous results and errors
-            results.style.display = 'none';
-            errorDiv.style.display = 'none';
-            loading.style.display = 'block';
+        // Find Best Game
+        findBestBtn.addEventListener('click', () => {
+            fetchRecommendation(false);
+        });
+
+        // Full Rankings
+        fullRankingsBtn.addEventListener('click', () => {
+            fetchRecommendation(true);
+        });
+
+        async function fetchRecommendation(showAll) {
+            const days = parseInt(daysSlider.value);
+            const team = favoriteTeam.value.trim().toUpperCase() || null;
+
+            // Show loading
+            loading.classList.remove('hidden');
+            error.classList.add('hidden');
+            results.innerHTML = '';
 
             try {
                 const response = await fetch('/recommend', {
@@ -353,8 +200,8 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        days: parseInt(days),
-                        favorite_team: favoriteTeam || null,
+                        days: days,
+                        favorite_team: team,
                         show_all: showAll
                     })
                 });
@@ -365,104 +212,255 @@
                     throw new Error(data.error || 'Failed to fetch recommendations');
                 }
 
-                loading.style.display = 'none';
-                results.style.display = 'block';
+                loading.classList.add('hidden');
 
                 if (showAll) {
-                    displayAllGames(data.games);
+                    displayAllGames(data.games, team);
                 } else {
-                    displayBestGame(data.game);
+                    displayBestGame(data.game, team);
                 }
 
-            } catch (error) {
-                loading.style.display = 'none';
-                errorDiv.textContent = `Error: ${error.message}`;
-                errorDiv.style.display = 'block';
+            } catch (err) {
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+                errorMessage.textContent = `Error: ${err.message}`;
             }
-        });
+        }
 
-        function displayBestGame(result) {
+        function getBadges(breakdown, favoriteTeam) {
+            const badges = [];
+
+            // Contender Matchup - if top 5 teams are playing
+            if (breakdown.top5_teams && breakdown.top5_teams.count > 0) {
+                badges.push({
+                    text: 'Contender Matchup',
+                    color: 'bg-green-500',
+                    icon: '⚡'
+                });
+            }
+
+            // Nailbiter - if game was close
+            if (breakdown.close_game && breakdown.close_game.points > 15) {
+                badges.push({
+                    text: 'Nailbiter',
+                    color: 'bg-red-500',
+                    icon: '🔥'
+                });
+            }
+
+            // My Team - if favorite team played
+            if (breakdown.favorite_team && breakdown.favorite_team.has_favorite) {
+                badges.push({
+                    text: 'My Team',
+                    color: 'bg-purple-500',
+                    icon: '❤️'
+                });
+            }
+
+            // Star Power - if star players played
+            if (breakdown.star_power && breakdown.star_power.count > 0) {
+                badges.push({
+                    text: 'Star Power',
+                    color: 'bg-red-500',
+                    icon: '⭐'
+                });
+            }
+
+            return badges;
+        }
+
+        function displayBestGame(result, favoriteTeam) {
             const game = result.game;
             const breakdown = result.breakdown;
+            const score = result.score;
+            const badges = getBadges(breakdown, favoriteTeam);
+
+            // Calculate "thrill score" (using engagement score)
+            const thrillScore = Math.round(score);
 
             results.innerHTML = `
-                <div class="game-card">
-                    <div class="game-header">
-                        <div class="game-title">Most Engaging Game</div>
-                        <div class="game-date">${game.game_date}</div>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold mb-4">Most Engaging Game</h2>
+                </div>
+
+                <div class="bg-gray-800 rounded-2xl p-6 golden-border">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Left: Game Info -->
+                        <div>
+                            <div class="bg-gray-900 rounded-xl p-6 mb-4 golden-border">
+                                <div class="text-center">
+                                    <h3 class="text-3xl font-bold mb-2">${game.away_team.abbr} vs. ${game.home_team.abbr}</h3>
+                                    <p class="text-gray-400 mb-1">Total Score</p>
+                                    <p class="text-xl font-semibold">${game.away_team.score + game.home_team.score}</p>
+                                    <p class="text-gray-500 text-sm mt-2">Final score: ${game.away_team.score}-${game.home_team.score}</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                ${badges.map(badge => `
+                                    <div class="flex items-center gap-2">
+                                        <span class="${badge.color} text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                                            <span>${badge.icon}</span>
+                                            <span>${badge.text}</span>
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Right: Stats -->
+                        <div>
+                            <div class="bg-gray-900 rounded-xl p-6 mb-4">
+                                <p class="text-gray-400 text-sm mb-1">Thrill Score</p>
+                                <p class="text-6xl font-bold">${thrillScore}</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-400">Date</span>
+                                    <span>${game.game_date}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-400">Final score</span>
+                                    <span>${game.away_team.score}-${game.home_team.score}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="score-display">
-                        <div class="team">
-                            <div>${game.away_team.name}</div>
-                        </div>
-                        <div class="vs">@</div>
-                        <div class="team">
-                            <div>${game.home_team.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="engagement-score">
-                        <h3>Engagement Score</h3>
-                        <div class="score">${result.score.toFixed(2)}</div>
-                    </div>
-
-                    <div class="breakdown">
-                        <h4>Score Breakdown</h4>
-                        <div class="breakdown-item">
-                            <span>Top 5 Teams</span>
-                            <span>${breakdown.top5_teams.count} team(s) (${breakdown.top5_teams.points.toFixed(1)} pts)</span>
-                        </div>
-                        <div class="breakdown-item">
-                            <span>Game Closeness</span>
-                            <span>${breakdown.close_game.points.toFixed(1)} pts</span>
-                        </div>
-                        <div class="breakdown-item">
-                            <span>Total Points</span>
-                            <span>${breakdown.total_points.threshold_met ? breakdown.total_points.points + ' pts ✓' : '0.0 pts (<200)'}</span>
-                        </div>
-                        <div class="breakdown-item">
-                            <span>Star Players</span>
-                            <span>${breakdown.star_power.count} (${breakdown.star_power.points.toFixed(1)} pts)</span>
-                        </div>
-                        <div class="breakdown-item">
-                            <span>Favorite Team</span>
-                            <span>${breakdown.favorite_team.has_favorite ? 'Yes' : 'No'} (${breakdown.favorite_team.points.toFixed(1)} pts)</span>
+                    <!-- Breakdown -->
+                    <div class="mt-6 pt-6 border-t border-gray-700">
+                        <h4 class="text-lg font-semibold mb-3">Score Breakdown</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                            ${breakdown.lead_changes ? `
+                                <div class="bg-gray-900 rounded-lg p-3">
+                                    <div class="text-gray-400 mb-1">Lead Changes</div>
+                                    <div class="font-semibold">${breakdown.lead_changes.count} (${breakdown.lead_changes.points.toFixed(1)}pts)</div>
+                                </div>
+                            ` : ''}
+                            <div class="bg-gray-900 rounded-lg p-3">
+                                <div class="text-gray-400 mb-1">Top 5 Teams</div>
+                                <div class="font-semibold">${breakdown.top5_teams.count} (${breakdown.top5_teams.points.toFixed(1)}pts)</div>
+                            </div>
+                            <div class="bg-gray-900 rounded-lg p-3">
+                                <div class="text-gray-400 mb-1">Close Game</div>
+                                <div class="font-semibold">${breakdown.close_game.points.toFixed(1)}pts</div>
+                            </div>
+                            <div class="bg-gray-900 rounded-lg p-3">
+                                <div class="text-gray-400 mb-1">Total Points</div>
+                                <div class="font-semibold">${breakdown.total_points.threshold_met ? breakdown.total_points.points.toFixed(1) + 'pts ✓' : '0.0pts'}</div>
+                            </div>
+                            <div class="bg-gray-900 rounded-lg p-3">
+                                <div class="text-gray-400 mb-1">Star Power</div>
+                                <div class="font-semibold">${breakdown.star_power.count} (${breakdown.star_power.points.toFixed(1)}pts)</div>
+                            </div>
+                            <div class="bg-gray-900 rounded-lg p-3">
+                                <div class="text-gray-400 mb-1">Favorite Team</div>
+                                <div class="font-semibold">${breakdown.favorite_team.has_favorite ? 'Yes' : 'No'} (${breakdown.favorite_team.points.toFixed(1)}pts)</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function displayAllGames(games) {
-            let html = '<div class="card"><h2>All Games Ranked by Engagement</h2><div class="games-list">';
+        function displayAllGames(games, favoriteTeam) {
+            results.innerHTML = `
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold">All Games Ranked by Engagement</h2>
+                </div>
 
-            games.forEach((result, index) => {
-                const game = result.game;
-                const breakdown = result.breakdown;
+                <div class="space-y-4">
+                    ${games.map((result, index) => {
+                        const game = result.game;
+                        const breakdown = result.breakdown;
+                        const score = result.score;
+                        const badges = getBadges(breakdown, favoriteTeam);
+                        const thrillScore = Math.round(score);
+                        const isFirst = index === 0;
 
-                html += `
-                    <div class="game-item">
-                        <div class="game-item-header">
-                            <div class="game-item-score">
-                                ${index + 1}. ${game.away_team.abbr} @ ${game.home_team.abbr}
+                        return `
+                            <div class="bg-gray-800 rounded-2xl p-6 ${isFirst ? 'golden-border' : ''}">
+                                <div class="grid md:grid-cols-3 gap-4">
+                                    <!-- Left: Rank and Game Info -->
+                                    <div>
+                                        ${isFirst ? `
+                                            <div class="bg-gradient-to-br from-yellow-400 to-yellow-600 text-gray-900 rounded-xl p-4 mb-3">
+                                                <div class="text-5xl font-bold">#${index + 1}</div>
+                                            </div>
+                                        ` : `
+                                            <div class="bg-gray-700 rounded-xl p-4 mb-3">
+                                                <div class="text-4xl font-bold text-gray-300">#${index + 1}</div>
+                                            </div>
+                                        `}
+
+                                        <div class="bg-gray-900 rounded-xl p-4">
+                                            <h3 class="text-xl font-bold mb-2">${game.away_team.abbr} vs. ${game.home_team.abbr}</h3>
+                                            <p class="text-gray-400 text-sm mb-1">Total Score</p>
+                                            <p class="text-lg font-semibold mb-2">${game.away_team.score + game.home_team.score}</p>
+                                            <p class="text-gray-500 text-xs">${game.game_date}</p>
+                                            <p class="text-gray-500 text-xs">Final score: ${game.away_team.score}-${game.home_team.score}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Middle: Badges -->
+                                    <div class="space-y-2">
+                                        ${badges.map(badge => `
+                                            <div class="flex items-center gap-2">
+                                                <span class="${badge.color} text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 w-full">
+                                                    <span>${badge.icon}</span>
+                                                    <span>${badge.text}</span>
+                                                </span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+
+                                    <!-- Right: Thrill Score -->
+                                    <div>
+                                        <div class="bg-gray-900 rounded-xl p-6 h-full flex flex-col items-center justify-center">
+                                            <p class="text-gray-400 text-sm mb-2">Thrill Score</p>
+                                            <p class="text-5xl font-bold">${thrillScore}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Breakdown (collapsed by default, except for #1) -->
+                                <div class="mt-4 pt-4 border-t border-gray-700 ${isFirst ? '' : 'hidden'}">
+                                    <h4 class="text-sm font-semibold mb-2 text-gray-400">Score Breakdown</h4>
+                                    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+                                        ${breakdown.lead_changes ? `
+                                            <div class="bg-gray-900 rounded p-2">
+                                                <div class="text-gray-500 mb-1">Lead Changes</div>
+                                                <div class="font-semibold">${breakdown.lead_changes.count} (${breakdown.lead_changes.points.toFixed(1)}pts)</div>
+                                            </div>
+                                        ` : ''}
+                                        <div class="bg-gray-900 rounded p-2">
+                                            <div class="text-gray-500 mb-1">Top 5</div>
+                                            <div class="font-semibold">${breakdown.top5_teams.count} (${breakdown.top5_teams.points.toFixed(1)}pts)</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2">
+                                            <div class="text-gray-500 mb-1">Close</div>
+                                            <div class="font-semibold">${breakdown.close_game.points.toFixed(1)}pts</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2">
+                                            <div class="text-gray-500 mb-1">Total Pts</div>
+                                            <div class="font-semibold">${breakdown.total_points.threshold_met ? breakdown.total_points.points.toFixed(1) + 'pts' : '0.0pts'}</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2">
+                                            <div class="text-gray-500 mb-1">Star Power</div>
+                                            <div class="font-semibold">${breakdown.star_power.count} (${breakdown.star_power.points.toFixed(1)}pts)</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2">
+                                            <div class="text-gray-500 mb-1">Fav Team</div>
+                                            <div class="font-semibold">${breakdown.favorite_team.has_favorite ? 'Yes' : 'No'} (${breakdown.favorite_team.points.toFixed(1)}pts)</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="game-item-engagement">Engagement Score: ${result.score.toFixed(2)}</div>
-                        </div>
-                        <div class="game-item-details">
-                            ${game.game_date} |
-                            Top 5 Teams: ${Math.round(breakdown.top5_teams.points)}pts |
-                            Final result close: ${Math.round(breakdown.close_game.points)}pts |
-                            Total game pts: ${breakdown.total_points.threshold_met ? Math.round(breakdown.total_points.points) : '0'}pts |
-                            Star players: ${Math.round(breakdown.star_power.points)}pts |
-                            Favorite team: ${Math.round(breakdown.favorite_team.points)}pts
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += '</div></div>';
-            results.innerHTML = html;
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
     </script>
 </body>
