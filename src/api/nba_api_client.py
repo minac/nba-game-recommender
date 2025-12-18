@@ -348,34 +348,121 @@ class NBASyncService:
         """
         Sync games from the last N days to database.
 
+        Uses LeagueGameFinder which is more reliable than scoreboardv2.
+
         Args:
             days: Number of days to sync
 
         Returns:
             Number of games synced
         """
-        from nba_api.stats.endpoints import scoreboardv2
+        from nba_api.stats.endpoints import leaguegamefinder
 
         logger.info(f"Syncing games for the last {days} days...")
 
-        # Start from yesterday (avoid incomplete games)
-        end_date = datetime.now() - timedelta(days=1)
+        # Calculate date range
+        end_date = datetime.now() - timedelta(days=1)  # Yesterday
         start_date = end_date - timedelta(days=days)
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
 
-        total_games = 0
-        current_date = start_date
+        try:
+            time.sleep(API_DELAY)
+            # Get current season
+            season = self._get_current_season()
 
-        while current_date <= end_date:
-            date_str = current_date.strftime("%Y-%m-%d")
-            games_synced = self._sync_games_for_date(date_str)
-            total_games += games_synced
-            current_date += timedelta(days=1)
+            # Fetch all completed games for the season
+            finder = leaguegamefinder.LeagueGameFinder(
+                season_nullable=season,
+                season_type_nullable="Regular Season",
+            )
+            games_df = finder.get_data_frames()[0]
 
-        self.db.set_last_sync(
-            "games", f"Synced {total_games} games for last {days} days"
-        )
-        logger.info(f"Total games synced: {total_games}")
-        return total_games
+            if games_df.empty:
+                logger.warning("No games found from LeagueGameFinder")
+                return 0
+
+            # Filter to date range
+            games_df["GAME_DATE"] = games_df["GAME_DATE"].astype(str)
+            games_df = games_df[
+                (games_df["GAME_DATE"] >= start_str)
+                & (games_df["GAME_DATE"] <= end_str)
+            ]
+
+            # LeagueGameFinder returns 2 rows per game (one per team)
+            # Group by GAME_ID to get unique games
+            unique_games = games_df.drop_duplicates("GAME_ID")
+            logger.info(f"Found {len(unique_games)} games in date range")
+
+            # Get season year for database
+            now = datetime.now()
+            season_year = now.year if now.month >= 10 else now.year - 1
+
+            count = 0
+            for _, game in unique_games.iterrows():
+                game_id = str(game["GAME_ID"])
+                game_date = game["GAME_DATE"]
+
+                # Skip if already in database
+                if self.db.has_games_for_date(game_date):
+                    existing = self.db.get_games_for_date(game_date)
+                    if any(g["game_id"] == game_id for g in existing):
+                        continue
+
+                # Parse matchup to get teams (e.g., "LAL vs. BOS" or "LAL @ BOS")
+                matchup = game["MATCHUP"]
+                team_abbr = game["TEAM_ABBREVIATION"]
+                pts = game["PTS"]
+
+                # Get the other team's row for this game
+                other_team = games_df[
+                    (games_df["GAME_ID"] == game_id)
+                    & (games_df["TEAM_ABBREVIATION"] != team_abbr)
+                ]
+
+                if other_team.empty:
+                    continue
+
+                other_abbr = other_team.iloc[0]["TEAM_ABBREVIATION"]
+                other_pts = other_team.iloc[0]["PTS"]
+
+                # Determine home vs away from matchup format
+                if " vs. " in matchup:
+                    # Team is home
+                    home_abbr, away_abbr = team_abbr, other_abbr
+                    home_score, away_score = pts, other_pts
+                else:
+                    # Team is away (@ format)
+                    home_abbr, away_abbr = other_abbr, team_abbr
+                    home_score, away_score = other_pts, pts
+
+                # Get team IDs
+                home_team = self.db.get_team_by_abbr(home_abbr)
+                away_team = self.db.get_team_by_abbr(away_abbr)
+
+                if not home_team or not away_team:
+                    logger.debug(f"Team not found: {home_abbr} or {away_abbr}")
+                    continue
+
+                self.db.upsert_game(
+                    game_id=game_id,
+                    game_date=game_date,
+                    home_team_id=home_team["id"],
+                    away_team_id=away_team["id"],
+                    home_score=int(home_score),
+                    away_score=int(away_score),
+                    status="Final",
+                    season=season_year,
+                )
+                count += 1
+
+            self.db.set_last_sync("games", f"Synced {count} games for last {days} days")
+            logger.info(f"Total games synced: {count}")
+            return count
+
+        except Exception as e:
+            logger.error(f"Error syncing games: {e}")
+            return 0
 
     def _sync_games_for_date(self, game_date: str) -> int:
         """
