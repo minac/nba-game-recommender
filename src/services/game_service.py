@@ -6,13 +6,14 @@ This service provides a unified interface for all clients (CLI, Web, API).
 from typing import Dict, List, Optional, Tuple, Any
 from src.core.recommender import GameRecommender
 from src.utils.logger import get_logger
-from src.api.nba_client import NBAAPIError
+from src.api.nba_api_client import NBAAPIError
 
 logger = get_logger(__name__)
 
 
 class ValidationError(Exception):
     """Custom exception for validation errors."""
+
     pass
 
 
@@ -72,11 +73,7 @@ class GameService:
         team_str = str(team).strip().upper()
         return team_str if team_str else None
 
-    def get_best_game(
-        self,
-        days: Any = 7,
-        favorite_team: Any = None
-    ) -> Dict[str, Any]:
+    def get_best_game(self, days: Any = 7, favorite_team: Any = None) -> Dict[str, Any]:
         """
         Get the best game recommendation.
 
@@ -102,52 +99,40 @@ class GameService:
             validated_days = self.validate_days(days)
             validated_team = self.validate_team(favorite_team)
 
-            logger.info(f"Getting best game for days={validated_days}, team={validated_team}")
+            logger.info(
+                f"Getting best game for days={validated_days}, team={validated_team}"
+            )
 
             # Get recommendation
             result = self.recommender.get_best_game(
-                days=validated_days,
-                favorite_team=validated_team
+                days=validated_days, favorite_team=validated_team
             )
 
             if not result:
                 return {
-                    'success': False,
-                    'error': 'No games found',
-                    'error_code': 'NO_GAMES'
+                    "success": False,
+                    "error": "No games found",
+                    "error_code": "NO_GAMES",
                 }
 
-            return {
-                'success': True,
-                'data': result
-            }
+            return {"success": True, "data": result}
 
         except ValidationError as e:
             logger.warning(f"Validation error in get_best_game: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'error_code': 'VALIDATION_ERROR'
-            }
+            return {"success": False, "error": str(e), "error_code": "VALIDATION_ERROR"}
         except NBAAPIError as e:
             logger.error(f"NBA API error in get_best_game: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'error_code': 'NBA_API_ERROR'
-            }
+            return {"success": False, "error": str(e), "error_code": "NBA_API_ERROR"}
         except Exception as e:
             logger.error(f"Error in get_best_game: {e}", exc_info=True)
             return {
-                'success': False,
-                'error': f"Internal error: {str(e)}",
-                'error_code': 'INTERNAL_ERROR'
+                "success": False,
+                "error": f"Internal error: {str(e)}",
+                "error_code": "INTERNAL_ERROR",
             }
 
     def get_all_games_ranked(
-        self,
-        days: Any = 7,
-        favorite_team: Any = None
+        self, days: Any = 7, favorite_team: Any = None
     ) -> Dict[str, Any]:
         """
         Get all games ranked by engagement score.
@@ -174,44 +159,35 @@ class GameService:
             validated_days = self.validate_days(days)
             validated_team = self.validate_team(favorite_team)
 
-            logger.info(f"Getting all ranked games for days={validated_days}, team={validated_team}")
+            logger.info(
+                f"Getting all ranked games for days={validated_days}, team={validated_team}"
+            )
 
             # Get recommendations
             results = self.recommender.get_all_games_ranked(
-                days=validated_days,
-                favorite_team=validated_team
+                days=validated_days, favorite_team=validated_team
             )
 
             # Empty list is a valid result (just means no games to rank)
-            return {
-                'success': True,
-                'count': len(results),
-                'data': results
-            }
+            return {"success": True, "count": len(results), "data": results}
 
         except ValidationError as e:
             logger.warning(f"Validation error in get_all_games_ranked: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'error_code': 'VALIDATION_ERROR'
-            }
+            return {"success": False, "error": str(e), "error_code": "VALIDATION_ERROR"}
         except NBAAPIError as e:
             logger.error(f"NBA API error in get_all_games_ranked: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'error_code': 'NBA_API_ERROR'
-            }
+            return {"success": False, "error": str(e), "error_code": "NBA_API_ERROR"}
         except Exception as e:
             logger.error(f"Error in get_all_games_ranked: {e}", exc_info=True)
             return {
-                'success': False,
-                'error': f"Internal error: {str(e)}",
-                'error_code': 'INTERNAL_ERROR'
+                "success": False,
+                "error": f"Internal error: {str(e)}",
+                "error_code": "INTERNAL_ERROR",
             }
 
-    def format_game_summary(self, game_result: Dict[str, Any], explain: bool = False) -> str:
+    def format_game_summary(
+        self, game_result: Dict[str, Any], explain: bool = False
+    ) -> str:
         """
         Format a game result as a human-readable summary.
 
@@ -245,18 +221,20 @@ class GameService:
         """
         try:
             return {
-                'success': True,
-                'data': {
-                    'star_players': sorted(list(self.recommender.nba_client.STAR_PLAYERS)),
-                    'top_teams': sorted(list(self.recommender.nba_client.TOP_5_TEAMS))
-                }
+                "success": True,
+                "data": {
+                    "star_players": sorted(
+                        list(self.recommender.nba_client.STAR_PLAYERS)
+                    ),
+                    "top_teams": sorted(list(self.recommender.nba_client.TOP_5_TEAMS)),
+                },
             }
         except Exception as e:
             logger.error(f"Error getting metadata: {e}", exc_info=True)
             return {
-                'success': False,
-                'error': f"Internal error: {str(e)}",
-                'error_code': 'INTERNAL_ERROR'
+                "success": False,
+                "error": f"Internal error: {str(e)}",
+                "error_code": "INTERNAL_ERROR",
             }
 
     @property

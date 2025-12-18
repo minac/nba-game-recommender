@@ -130,9 +130,6 @@ class GameRecommender:
 
         parts = []
         parts.append(
-            f"Lead Changes: {breakdown['lead_changes']['count']} × {config['lead_changes_weight']} = {breakdown['lead_changes']['points']:.1f}"
-        )
-        parts.append(
             f"Top5 Teams: {breakdown['top5_teams']['count']} × {config['top5_team_bonus']} = {breakdown['top5_teams']['points']:.1f}"
         )
         parts.append(

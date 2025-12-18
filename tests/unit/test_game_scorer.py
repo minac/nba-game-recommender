@@ -128,7 +128,7 @@ class TestGameScorer:
     def test_total_points_below_threshold(self):
         """Test that games below point threshold get no bonus points."""
         game = get_sample_game(
-            home_score=85, away_score=90, star_players=2, lead_changes=0
+            home_score=85, away_score=90, star_players=2
         )  # 175 total, below 200
         result = self.scorer.score_game(game)
 
@@ -203,7 +203,6 @@ class TestGameScorer:
             home_score=118,
             away_score=115,  # 3 point margin (close)
             star_players=6,
-            lead_changes=0,
         )
         top5_teams = {"LAL", "BOS", "DEN", "MIL", "PHX"}
         result = self.scorer.score_game(
@@ -229,7 +228,6 @@ class TestGameScorer:
             home_score=95,
             away_score=75,  # 20 point margin (blowout)
             star_players=0,
-            lead_changes=0,
         )
         result = self.scorer.score_game(game)
 
@@ -275,7 +273,6 @@ class TestGameScorer:
             home_score=100,
             away_score=100,  # Exactly 200 total points, 0 margin = 100 close bonus
             star_players=0,
-            lead_changes=0,
         )
         result = self.scorer.score_game(game)
 

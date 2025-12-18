@@ -39,7 +39,6 @@ def temp_cache_dir():
 def sample_config():
     """Provide a sample configuration dictionary."""
     return {
-        "lead_changes_weight": 10,
         "top5_team_bonus": 50,
         "close_game_bonus": 100,
         "min_total_points": 200,

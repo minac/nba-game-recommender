@@ -4,7 +4,7 @@ Technical documentation for developers and AI assistants working with the NBA Ga
 
 ## Project Overview
 
-Modular NBA game recommendation system that analyzes past week's games using Ball Don't Lie API. Scores games on engagement factors (closeness, star power, top teams) and ranks them. Supports CLI, REST API, Web UI, and TRMNL e-ink display.
+Modular NBA game recommendation system that analyzes past week's games using nba_api (free, scrapes NBA.com). Scores games on engagement factors (closeness, star power, top teams) and ranks them. Supports CLI, REST API, Web UI, and TRMNL e-ink display.
 
 ## Architecture
 
@@ -16,12 +16,13 @@ src/
 │   ├── game_scorer.py      # Scoring algorithm (5 criteria)
 │   └── recommender.py      # Orchestration
 ├── api/
-│   └── nba_client.py       # Ball Don't Lie API + caching
+│   └── nba_api_client.py   # nba_api client + SQLite caching
 ├── utils/
 │   ├── logger.py           # Centralized logging
-│   └── cache.py            # Date-based file cache
+│   └── database.py         # SQLite database
 └── interfaces/
     ├── cli.py              # Command-line
+    ├── sync_cli.py         # Data sync CLI
     ├── api_server.py       # REST API (Flask)
     └── web/app.py          # Web UI
 
@@ -32,28 +33,36 @@ tests/                # Unit + integration tests
 ### Key Components
 
 **GameScorer** (`src/core/game_scorer.py`)
+
 - Pure scoring logic, no side effects
 - Configurable weights from `config.yaml`
 - Returns score + detailed breakdown
 
 **GameRecommender** (`src/core/recommender.py`)
+
 - Fetches games via NBAClient
 - Applies GameScorer to each game
 - Returns sorted results
 
-**NBAClient** (`src/api/nba_client.py`)
-- Ball Don't Lie API client
-- Rate limiting: 100 req/min
-- Integrated with DateBasedCache
-- Fetches: scoreboards, game details, standings, season leaders
+**NBAClient** (`src/api/nba_api_client.py`)
 
-**DateBasedCache** (`src/utils/cache.py`)
-- File-based cache: `/tmp/nba_cache/`
-- Organized by date (scoreboards) and game ID (details)
-- Configurable TTL (default: 30 days)
-- Auto-cleanup on startup
+- Uses nba_api library (free, scrapes NBA.com)
+- Data stored in local SQLite database
+- No API key required
+
+**NBASyncService** (`src/api/nba_api_client.py`)
+
+- Syncs teams, standings, star players, and games to database
+- Run via `sync_cli.py` before using recommendations
+
+**NBADatabase** (`src/utils/database.py`)
+
+- SQLite database for persistent storage
+- Tables: teams, standings, players, games, game_players, sync_log
+- Fast queries, no rate limits after sync
 
 **Logger** (`src/utils/logger.py`)
+
 - Centralized config using stdlib logging
 - Consistent formatting across all modules
 
@@ -61,11 +70,11 @@ tests/                # Unit + integration tests
 
 See `src/core/game_scorer.py`:
 
-1. **Top 5 Teams** (20 pts/team) - Dynamically fetched from standings API
+1. **Top 5 Teams** (20 pts/team) - From standings in database
 2. **Game Closeness** (up to 50 pts) - 0-3 margin: 50pts, 4-5: 40pts, 6-10: 25pts, 11-15: 12.5pts
-3. **Total Points Threshold** (200+ min) - 90% penalty if below
-4. **Star Power** (20 pts/star) - Top 30 scorers from season leaders API
-5. **Favorite Team** (100 pts) - User preference bonus
+3. **High Score Bonus** (10 pts) - If total points >= 200
+4. **Star Power** (20 pts/star) - Top 30 scorers from database
+5. **Favorite Team** (75 pts) - User preference bonus
 
 All weights configurable in `config.yaml`.
 
@@ -74,35 +83,29 @@ All weights configurable in `config.yaml`.
 Single `config.yaml` controls everything:
 
 ```yaml
-favorite_team: "LAL"
+favorite_team: "GSW"
 scoring:
   top5_team_bonus: 20
   close_game_bonus: 50
   min_total_points: 200
+  high_score_bonus: 10
   star_power_weight: 20
-  favorite_team_bonus: 100
-cache:
-  enabled: true
-  directory: "/tmp/nba_cache"
-  scoreboard_ttl_days: 30
-  game_details_ttl_days: 30
-  auto_cleanup: true
-nba_api:
-  api_key: null  # Or BALLDONTLIE_API_KEY env var
+  favorite_team_bonus: 40
+database:
+  path: "data/nba_games.db"
 ```
 
 Changes take effect on restart (no hot reload).
 
 ## Data Flow
 
-1. User request → Interface layer (CLI/API/Web/TRMNL)
-2. Interface → `GameRecommender.get_best_game(days, team)`
-3. Recommender → `NBAClient.fetch_games()`
-4. NBAClient checks `DateBasedCache`
-   - HIT: Return cached (fast)
-   - MISS: Fetch from API, cache, return
-5. For each game: `GameScorer.score_game()` calculates score
-6. Sort by score, return results
+1. Run sync: `uv run python src/interfaces/sync_cli.py` (populates database)
+2. User request → Interface layer (CLI/API/Web/TRMNL)
+3. Interface → `GameRecommender.get_best_game(days, team)`
+4. Recommender → `NBAClient.get_games_last_n_days()`
+5. NBAClient queries SQLite database
+6. For each game: `GameScorer.score_game()` calculates score
+7. Sort by score, return results
 
 ## Development Patterns
 
@@ -121,21 +124,19 @@ Changes take effect on restart (no hot reload).
 3. Return JSON response
 4. Add integration test
 
-### Modifying Data Points
+### Syncing New Data
 
-1. Check Ball Don't Lie API support
-2. Update `NBAClient` methods
-3. Update game dict in `recommender.py`
-4. Make available to `GameScorer`
-5. Consider cache implications
+1. Add method to `NBASyncService`
+2. Add table/columns to `NBADatabase`
+3. Call sync method in `sync_all()`
 
 ## Important Files
 
 - `config.yaml` - All configuration
 - `src/core/game_scorer.py` - Scoring algorithm
 - `src/core/recommender.py` - Main orchestration
-- `src/api/nba_client.py` - API client + caching
-- `src/utils/cache.py` - Caching system
+- `src/api/nba_api_client.py` - API client + sync service
+- `src/utils/database.py` - SQLite database
 - `pyproject.toml` - Dependencies (managed by uv)
 
 ## Working with the Codebase
@@ -151,6 +152,10 @@ uv sync --extra test       # Include test deps
 uv add <package>           # Add dependency
 uv remove <package>        # Remove dependency
 
+# Syncing data (required before first use)
+uv run python src/interfaces/sync_cli.py        # Full sync
+uv run python src/interfaces/sync_cli.py games  # Games only
+
 # Running
 uv run python src/interfaces/cli.py
 uv run python src/interfaces/api_server.py
@@ -163,25 +168,23 @@ uv run pytest tests/unit/             # Unit only
 uv run pytest tests/integration/      # Integration only
 ```
 
-### Caching System
+### Database System
 
-**Performance Impact:**
-- Without cache: 2-5 sec/game (API latency)
-- With cache: 0.01 sec (file read)
+**Location:** `data/nba_games.db` (SQLite)
 
-**Cache Structure:**
-```
-/tmp/nba_cache/
-├── scoreboards/
-│   └── 2024-01-15.json    # All games for date
-└── games/
-    └── 0022300123.json    # Game details
-```
+**Tables:**
+
+- `teams` - NBA team info
+- `standings` - Current season standings
+- `players` - Player info + star status
+- `games` - Game results
+- `game_players` - Players in each game
+- `sync_log` - Sync timestamps
 
 **Management:**
-- Clear: `rm -rf /tmp/nba_cache`
-- Stats: `cache.get_cache_stats()`
-- Auto-cleanup: Set `auto_cleanup: true` in config
+
+- View: `sqlite3 data/nba_games.db ".tables"`
+- Clear: `rm data/nba_games.db && uv run python src/interfaces/sync_cli.py`
 
 ### API Endpoints
 
@@ -197,14 +200,13 @@ E-ink display endpoint returns Liquid template variables:
 
 ```json
 {
-  "merge_variables": {
-    "home_team": "LAL",
-    "home_score": 118,
-    "away_team": "BOS",
-    "away_score": 115,
-    "engagement_score": 425.5,
-    "is_favorite": "yes",
-    "breakdown_*": "..."
+  "game": {...},
+  "score": "85.5",
+  "breakdown": {
+    "top5_teams": {"count": 2, "points": "40.0"},
+    "close_game": {"margin": 3, "points": "50.0"},
+    "star_power": {"count": 3, "points": "60.0"},
+    ...
   }
 }
 ```
@@ -213,24 +215,25 @@ Layouts in `trmnl/src/`: `full.liquid`, `half_horizontal.liquid`, `half_vertical
 
 ## Error Handling
 
-- NBA API errors caught and logged in `NBAClient`
+- NBA API errors caught and logged in sync service
 - Config validation at startup
 - Missing data falls back to defaults
-- Top teams/stars fall back if API fails
-- Cache errors logged but don't block (falls back to API)
+- Top teams/stars fall back if database is empty
+- Database errors logged with appropriate fallbacks
 
 ## Testing
 
 **Test Structure:**
-- `tests/unit/` - Component tests (scorer, recommender, client, cache)
+
+- `tests/unit/` - Component tests (scorer, recommender, database)
 - `tests/integration/` - Interface tests (CLI, API)
 - `tests/fixtures/` - Shared test data
 
 **Key Practices:**
-- Mock NBA API for reliability (using `responses` library)
-- Real file I/O for cache tests
+
+- Mock database for unit tests
 - Use `freezegun` for date mocking
-- Test edge cases: no games, API failures, tied games
+- Test edge cases: no games, empty database, tied games
 
 ## Code Style
 
@@ -244,18 +247,20 @@ Layouts in `trmnl/src/`: `full.liquid`, `half_horizontal.liquid`, `half_vertical
 ## Dependencies
 
 **Production:**
-- requests, flask, pyyaml, python-dateutil, gunicorn, python-dotenv
+
+- nba_api, flask, pyyaml, python-dateutil, gunicorn, python-dotenv
 
 **Test (optional):**
-- pytest, pytest-cov, pytest-mock, responses, freezegun
+
+- pytest, pytest-cov, pytest-mock, freezegun
 
 Managed in `pyproject.toml` via uv.
 
 ## Tips for AI Assistants
 
 1. **Always use uv** - Never use pip/python directly
-2. **Use logger utility** - `get_logger(__name__)` not `print()`
-3. **Understand caching** - Automatic in NBAClient, check config first
+2. **Sync data first** - Run sync_cli.py before testing recommendations
+3. **Use logger utility** - `get_logger(__name__)` not `print()`
 4. **Read config first** - Check `config.yaml` for current settings
 5. **Follow architecture** - Keep core in `src/core/`, interfaces separate
 6. **Preserve modularity** - Changes work across all interfaces
@@ -266,9 +271,7 @@ Managed in `pyproject.toml` via uv.
 
 ## Future Enhancements
 
-- Historical game database (beyond file cache)
 - ML for personalized weights
 - Live game recommendations
 - Playoff importance factor
-- Advanced metrics (limited by API)
-- Redis/memcached for distributed caching
+- Advanced metrics from box scores

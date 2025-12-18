@@ -27,12 +27,11 @@ class TestCLI:
         mock_instance = Mock()
         mock_game_result = {
             "game": get_sample_game(),
-            "score": 425.50,
+            "score": 305.50,
             "breakdown": {
-                "lead_changes": {"count": 12, "points": 120.0},
                 "top5_teams": {"count": 2, "points": 100.0},
                 "close_game": {"margin": 3, "points": 100.0},
-                "total_points": {"total": 233, "threshold_met": True},
+                "total_points": {"total": 233, "threshold_met": True, "points": 10.0},
                 "star_power": {"count": 4, "points": 80.0},
                 "favorite_team": {"has_favorite": True, "points": 75.0},
             },

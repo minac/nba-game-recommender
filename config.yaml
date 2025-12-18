@@ -8,7 +8,6 @@ scoring:
   min_total_points: 200 # Minimum total points threshold
   high_score_bonus: 10 # Bonus for games with 200+ total points
   star_power_weight: 20 # Points per star player
-  lead_changes_weight: 10 # Points per lead change (based on quarter scoring)
   favorite_team_bonus: 40 # Bonus if favorite team plays
 
 # API Configuration

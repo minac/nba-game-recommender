@@ -31,9 +31,6 @@ variables:
   score: "425.5"
 
   breakdown:
-    lead_changes:
-      count: 12
-      points: "120.0"
     top5_teams:
       count: 2
       points: "100.0"
