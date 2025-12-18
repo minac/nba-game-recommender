@@ -51,11 +51,5 @@ config.local.yaml
 # Logs
 *.log
 
-# Testing and Coverage
-.coverage
-coverage.xml
-htmlcov/
+# Testing
 .pytest_cache/
-
-# Local data (SQLite database)
-data/

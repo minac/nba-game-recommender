@@ -1,12 +1,25 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Cleanup of deprecated code after API migration
+current_focus: Removing test coverage tooling
 blockers: none
-next_steps: Merge PR #65
-last_updated: 2025-12-18 21:00
+next_steps: Create PR for coverage removal
+last_updated: 2025-12-18 21:40
 -->
 
 # Project Log
+
+## 2025-12-18 21:40
+
+**Did:** Removed test coverage tooling
+
+- Deleted `.coveragerc` config file
+- Removed `pytest-cov` from test dependencies
+- Stripped `--cov*` flags from pytest.ini
+- Removed codecov upload steps from CI workflow
+- Cleaned up .gitignore coverage entries
+- Tests now run in 0.30s (faster without coverage overhead)
+
+---
 
 ## 2025-12-18 21:00
 

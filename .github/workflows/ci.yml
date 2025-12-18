@@ -28,21 +28,5 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra test
 
-      - name: Run tests with coverage
+      - name: Run tests
         run: uv run pytest
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
-
-      - name: Display coverage summary
-        if: always()
-        run: |
-          if [ -f coverage.xml ]; then
-            echo "Coverage report generated successfully"
-          fi
