@@ -1,12 +1,32 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: nba_api + SQLite implementation complete and tested
+current_focus: Cleanup of deprecated code after API migration
 blockers: none
-next_steps: Merge PR, production deployment
-last_updated: 2025-12-18 20:36
+next_steps: Merge PR #65
+last_updated: 2025-12-18 21:00
 -->
 
 # Project Log
+
+## 2025-12-18 21:00
+
+**Did:** Removed lead_changes criterion and old Ball Don't Lie files
+
+- Removed `lead_changes` scoring criterion (not available in nba_api)
+- Deleted `src/api/nba_client.py` (old Ball Don't Lie client - 837 lines)
+- Deleted `src/utils/cache.py` (old file-based cache - 311 lines)
+- Deleted `scripts/clear_cache.py` and `tests/unit/test_cache.py`
+- Updated web UI to show 5 breakdown columns instead of 6
+- Updated CLAUDE.md documentation for new architecture
+- Fixed import in game_service.py to use nba_api_client
+- All 115 tests passing
+- Created PR #65
+
+Net change: -1633 lines (removed 2433, added 800)
+
+**Learned:** The old lead_changes criterion required quarter-by-quarter scores that Ball Don't Lie provided but nba_api doesn't expose through its sync endpoints.
+
+---
 
 ## 2025-12-18 20:36
 
