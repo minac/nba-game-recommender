@@ -42,9 +42,25 @@ Weights configurable in `config.yaml`.
 ## API Endpoints
 
 - `GET /api/health` - Health check
-- `GET /api/best-game?days=7&team=LAL` - Best game
-- `GET /api/games?days=7&team=LAL` - All ranked
+- `POST /recommend` - Best game or all ranked
 - `GET /api/trmnl?days=7&team=LAL` - TRMNL webhook
+
+### Examples
+
+```bash
+# Health check
+curl http://localhost:8080/api/health
+
+# Get best game from last 7 days
+curl -X POST http://localhost:8080/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"days": 7}'
+
+# With favorite team and all results
+curl -X POST http://localhost:8080/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"days": 7, "favorite_team": "LAL", "show_all": true}'
+```
 
 ## Database
 
