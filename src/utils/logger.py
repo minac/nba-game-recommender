@@ -12,7 +12,7 @@ from typing import Optional
 def setup_logger(
     name: str,
     level: int = logging.DEBUG,  # Temporarily changed to DEBUG to investigate
-    format_string: Optional[str] = None
+    format_string: Optional[str] = None,
 ) -> logging.Logger:
     """
     Set up a structured logger with consistent formatting.
@@ -39,14 +39,9 @@ def setup_logger(
 
     # Create formatter
     if format_string is None:
-        format_string = (
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        format_string = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-    formatter = logging.Formatter(
-        format_string,
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+    formatter = logging.Formatter(format_string, datefmt="%Y-%m-%d %H:%M:%S")
     handler.setFormatter(formatter)
 
     # Add handler to logger
@@ -77,7 +72,7 @@ def configure_root_logger(level: int = logging.INFO) -> None:
     """
     logging.basicConfig(
         level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        handlers=[logging.StreamHandler(sys.stdout)]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
     )

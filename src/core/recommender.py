@@ -221,7 +221,7 @@ FINAL CALCULATION:
 {"=" * 60}
 
 Base Score: {breakdown["top5_teams"]["points"]:.1f} + {breakdown["close_game"]["points"]:.1f} + {breakdown["star_power"]["points"]:.1f} + {breakdown["favorite_team"]["points"]:.1f}
-{f"After Penalty: × 0.1 (low total points)" if breakdown["total_points"].get("penalty_applied") else ""}
+{"After Penalty: × 0.1 (low total points)" if breakdown["total_points"].get("penalty_applied") else ""}
 FINAL SCORE: {score:.2f}
 
 {"=" * 60}

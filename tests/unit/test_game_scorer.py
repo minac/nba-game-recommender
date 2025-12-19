@@ -1,6 +1,5 @@
 """Unit tests for GameScorer class."""
 
-import pytest
 from src.core.game_scorer import GameScorer
 from tests.fixtures.sample_data import get_sample_game, get_sample_config
 

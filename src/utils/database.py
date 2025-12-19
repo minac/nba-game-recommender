@@ -1,8 +1,7 @@
 """SQLite database for persistent NBA data storage."""
 
 import sqlite3
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
