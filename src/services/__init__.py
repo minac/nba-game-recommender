@@ -2,4 +2,4 @@
 
 from src.services.game_service import GameService, ValidationError
 
-__all__ = ['GameService', 'ValidationError']
+__all__ = ["GameService", "ValidationError"]

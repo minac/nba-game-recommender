@@ -1,12 +1,24 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Commit uv.lock
+current_focus: Remove TRMNL simulator
 blockers: none
 next_steps: Ship or continue with next task
-last_updated: 2025-12-19 09:55
+last_updated: 2025-12-19 10:05
 -->
 
 # Project Log
+
+## 2025-12-19 10:05
+
+**Did:** Removed TRMNL simulator
+
+- Deleted `trmnl_viewer.html` (354 lines)
+- Removed `/trmnl-viewer` and `/trmnl-viewer/render` routes from app.py (159 lines)
+- Removed unused `liquid` import
+- `/api/trmnl` endpoint (actual TRMNL polling) remains intact
+- Net: ~510 lines removed
+
+---
 
 ## 2025-12-19 09:55
 

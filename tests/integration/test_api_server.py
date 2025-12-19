@@ -1,7 +1,7 @@
 """Integration tests for API server."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 import sys
 from pathlib import Path
 

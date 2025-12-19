@@ -3,7 +3,7 @@ Shared service layer for game recommendation logic.
 This service provides a unified interface for all clients (CLI, Web, API).
 """
 
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Any
 from src.core.recommender import GameRecommender
 from src.utils.logger import get_logger
 from src.api.nba_api_client import NBAAPIError

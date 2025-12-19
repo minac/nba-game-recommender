@@ -4,7 +4,7 @@ import pytest
 import tempfile
 import os
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from src.api.nba_api_client import (
     NBAClient,
     NBASyncService,

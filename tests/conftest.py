@@ -4,7 +4,6 @@ import pytest
 import sys
 import shutil
 import tempfile
-import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 

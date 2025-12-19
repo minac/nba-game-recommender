@@ -88,7 +88,7 @@ def main():
             star_players = game_service.star_players
 
             print(f"\n{'=' * 60}")
-            print(f"⭐ CURRENT STAR PLAYERS")
+            print("⭐ CURRENT STAR PLAYERS")
             print(f"{'=' * 60}")
             print(f"Total Players: {len(star_players)}")
             print(f"{'=' * 60}\n")
@@ -103,17 +103,16 @@ def main():
             print(
                 f"Note: Star players are weighted at {game_service.star_power_weight} points each"
             )
-            print(f"      in the engagement scoring algorithm.")
+            print("      in the engagement scoring algorithm.")
             print(f"{'=' * 60}\n")
             return
 
         # Handle --top-teams command
         if args.top_teams:
             top_teams = game_service.top_teams
-            data_source = game_service.config.get("data_source", "nba_stats")
 
             print(f"\n{'=' * 60}")
-            print(f"🏆 TOP 5 TEAMS BY WIN PERCENTAGE")
+            print("🏆 TOP 5 TEAMS BY WIN PERCENTAGE")
             print(f"{'=' * 60}")
             print(f"Total Teams: {len(top_teams)}")
             print(f"{'=' * 60}\n")
@@ -128,7 +127,7 @@ def main():
             print(
                 f"Note: Top 5 teams receive a {game_service.top5_team_bonus} point bonus"
             )
-            print(f"      in the engagement scoring algorithm.")
+            print("      in the engagement scoring algorithm.")
             print(f"{'=' * 60}\n")
             return
 
@@ -158,7 +157,7 @@ def main():
                 return
 
             print(f"{'=' * 60}")
-            print(f"ALL GAMES RANKED BY ENGAGEMENT")
+            print("ALL GAMES RANKED BY ENGAGEMENT")
             print(f"{'=' * 60}\n")
 
             for i, result in enumerate(games, 1):
