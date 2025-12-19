@@ -1,12 +1,22 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Simplify web UI
+current_focus: Reduce CLAUDE.md
 blockers: none
 next_steps: Ship or continue with next task
-last_updated: 2025-12-19 09:35
+last_updated: 2025-12-19 09:45
 -->
 
 # Project Log
+
+## 2025-12-19 09:45
+
+**Did:** Reduced local CLAUDE.md
+
+- Reduced from 277 to 65 lines
+- Removed content duplicated in global ~/.claude/CLAUDE.md
+- Kept only project-specific: architecture, scoring, API endpoints, database, TRMNL
+
+---
 
 ## 2025-12-19 09:35
 
