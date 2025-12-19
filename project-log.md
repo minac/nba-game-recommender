@@ -1,12 +1,22 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Removing test coverage tooling
+current_focus: Include data folder for Render deployment
 blockers: none
-next_steps: Create PR for coverage removal
-last_updated: 2025-12-18 21:40
+next_steps: Create PR or continue with next todo item
+last_updated: 2025-12-19 09:15
 -->
 
 # Project Log
+
+## 2025-12-19 09:15
+
+**Did:** Added SQLite database to git for Render deployment
+
+- Added `data/nba_games.db` (77KB) to repo
+- Pre-seeded database means Render can serve recommendations immediately
+- Note: `.gitignore` didn't have `data/` - it was just untracked
+
+---
 
 ## 2025-12-18 21:40
 
