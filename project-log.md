@@ -1,12 +1,22 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Added comprehensive testing docs
+current_focus: Lowered favorite team bonus
 blockers: none
-next_steps: Ship or continue with next task
-last_updated: 2025-12-19 13:40
+next_steps: Review PR #80, then work on daily data refresh
+last_updated: 2025-12-28 12:00
 -->
 
 # Project Log
+
+## 2025-12-28 12:00
+
+**Did:** Lowered favorite team bonus from 40 to 20 points (PR #80)
+
+- Reduced scoring weight so favorite team acts as tie-breaker, not dominant factor
+- Updated config.yaml, game_scorer.py default, CLAUDE.md, and 7 test files
+- All 115 tests passing
+
+---
 
 ## 2025-12-19 13:40
 
