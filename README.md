@@ -121,18 +121,17 @@ curl "http://localhost:8080/api/trmnl?days=7"
 
 ## Database
 
-Data stored in `data/nba_games.db` (SQLite). To refresh:
+Data stored in SQLite (`data/nba_games.db` locally, `/data/nba_games.db` on Render).
+
+**Local refresh:**
 
 ```bash
-# Full sync
-uv run python src/interfaces/sync_cli.py
-
-# Games only
-uv run python src/interfaces/sync_cli.py games
-
-# Reset database
-rm data/nba_games.db && uv run python src/interfaces/sync_cli.py
+uv run python src/interfaces/sync_cli.py           # Full sync
+uv run python src/interfaces/sync_cli.py --games-only  # Games only
+rm data/nba_games.db && uv run python src/interfaces/sync_cli.py  # Reset
 ```
+
+**Production (Render):** Data syncs automatically daily at 9am UTC via cron job. The web service has a persistent disk so data survives restarts.
 
 ## Configuration
 

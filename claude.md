@@ -44,6 +44,7 @@ Weights configurable in `config.yaml`.
 - `GET /api/health` - Health check
 - `POST /recommend` - Best game or all ranked
 - `GET /api/trmnl?days=7&team=LAL` - TRMNL webhook
+- `POST /api/sync` - Trigger data sync (protected by X-Sync-Token header)
 
 ### Examples
 

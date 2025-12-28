@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Web interface for NBA Game Recommender."""
 
+import os
 import sys
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
@@ -11,10 +12,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.core.recommender import GameRecommender
 from src.services.game_service import GameService
+from src.api.nba_api_client import NBASyncService
 from src.utils.logger import get_logger
 import yaml
 
 logger = get_logger(__name__)
+
+# Sync token for protected endpoint (set via SYNC_TOKEN env var)
+SYNC_TOKEN = os.environ.get("SYNC_TOKEN")
 
 app = Flask(__name__)
 
@@ -83,6 +88,52 @@ def health():
     """Health check endpoint."""
     logger.info("GET /api/health")
     return jsonify({"status": "ok"})
+
+
+@app.route("/api/sync", methods=["POST"])
+def sync_data():
+    """
+    Sync NBA data from nba_api to local database.
+
+    Protected by X-Sync-Token header. Called by Render cron job.
+
+    Returns:
+        JSON with sync results or error
+    """
+    logger.info("POST /api/sync - Starting data sync")
+
+    # Verify sync token
+    provided_token = request.headers.get("X-Sync-Token")
+    if not SYNC_TOKEN:
+        logger.warning("SYNC_TOKEN not configured - sync endpoint disabled")
+        return jsonify({"success": False, "error": "Sync endpoint not configured"}), 503
+
+    if not provided_token or provided_token != SYNC_TOKEN:
+        logger.warning("Invalid or missing sync token")
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    try:
+        # Run full sync
+        sync_service = NBASyncService()
+        results = sync_service.sync_all(days=7)
+
+        # Clear request cache after sync so new data is served
+        global _request_cache
+        _request_cache = {}
+
+        logger.info(f"Sync completed successfully: {results}")
+        return jsonify(
+            {
+                "success": True,
+                "message": "Sync completed",
+                "results": results,
+                "synced_at": datetime.now().isoformat(),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Sync failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/recommend", methods=["POST"])

@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install uv
         run: |
@@ -32,9 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: uv sync
-
-      - name: Clear cache before deployment
-        run: uv run python scripts/clear_cache.py
 
       - name: Trigger Render Deployment
         run: |
