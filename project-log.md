@@ -1,12 +1,36 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Daily data sync via Render cron job
+current_focus: Render cron job sync working
 blockers: none
-next_steps: Merge PR #81, verify Render deployment
-last_updated: 2025-12-28 16:00
+next_steps: Monitor daily syncs
+last_updated: 2025-12-28 21:35
 -->
 
 # Project Log
+
+## 2025-12-28 21:35
+
+**Did:** Troubleshot and fixed Render cron job sync issues
+
+Two issues found and fixed via Render REST API:
+
+1. Cron job was calling wrong URL (`nba-game-recommender.onrender.com` instead of `nba-engaging-game-week.onrender.com`)
+2. Web service was missing `SYNC_TOKEN` env var (cron job had it, web service didn't)
+
+Fixes applied:
+
+- `PATCH /v1/services/crn-d58p8i3e5dus73e3afn0` - Updated start command URL
+- `PUT /v1/services/srv-d4dijafdiees73ckgrmg/env-vars/SYNC_TOKEN` - Added matching token
+- Triggered redeploy, verified sync works
+
+**Learned:**
+
+- **Render MCP server has auth bugs** - Filed [render-oss/render-mcp-server#10](https://github.com/render-oss/render-mcp-server/issues/10). OAuth endpoint returns 404, and API key auth shows "not authenticated" despite working with REST API. Workaround: use REST API directly.
+- **MCP config location**: `~/.claude.json` under `projects.<path>.mcpServers`
+- **Render REST API works perfectly** - Same API key that fails with MCP works fine with `api.render.com/v1/*`
+- **Env vars need redeploy** - Adding env vars via API requires triggering a new deploy for them to take effect
+
+---
 
 ## 2025-12-28 16:00
 
