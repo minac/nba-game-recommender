@@ -4,6 +4,7 @@ This client fetches data from NBA.com via the nba_api library and stores
 it in a local SQLite database to minimize API calls and avoid rate limiting.
 """
 
+import os
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
@@ -13,6 +14,32 @@ from src.utils.logger import get_logger
 from src.utils.database import NBADatabase
 
 logger = get_logger(__name__)
+
+
+def get_database_path(config_path: str = "config.yaml") -> str:
+    """Get database path from environment variable or config file.
+
+    Priority:
+    1. DATABASE_PATH environment variable (for production/Render)
+    2. config.yaml database.path setting (for local development)
+    """
+    # Check env var first (production)
+    env_path = os.environ.get("DATABASE_PATH")
+    if env_path:
+        logger.info(f"Using database path from DATABASE_PATH env var: {env_path}")
+        return env_path
+
+    # Fall back to config file (development)
+    try:
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+            db_path = config.get("database", {}).get("path", "data/nba_games.db")
+            logger.info(f"Using database path from config: {db_path}")
+            return db_path
+    except Exception as e:
+        logger.warning(f"Could not load config, using default: {e}")
+        return "data/nba_games.db"
+
 
 # Delay between API calls to avoid rate limiting (in seconds)
 API_DELAY = 0.6  # 600ms between calls
@@ -69,17 +96,8 @@ class NBAClient:
         Args:
             config_path: Path to configuration file
         """
-        # Load configuration
-        try:
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
-                self.db_config = config.get("database", {})
-        except Exception as e:
-            logger.warning(f"Could not load config, using defaults: {e}")
-            self.db_config = {}
-
-        # Initialize database
-        db_path = self.db_config.get("path", "data/nba_games.db")
+        # Initialize database with env var or config path
+        db_path = get_database_path(config_path)
         self.db = NBADatabase(db_path=db_path)
 
         # Cache for runtime data
@@ -204,15 +222,8 @@ class NBASyncService:
         Args:
             config_path: Path to configuration file
         """
-        try:
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
-                self.db_config = config.get("database", {})
-        except Exception as e:
-            logger.warning(f"Could not load config, using defaults: {e}")
-            self.db_config = {}
-
-        db_path = self.db_config.get("path", "data/nba_games.db")
+        # Initialize database with env var or config path
+        db_path = get_database_path(config_path)
         self.db = NBADatabase(db_path=db_path)
 
     def _get_current_season(self) -> str:

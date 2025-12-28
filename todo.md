@@ -1,1 +1,0 @@
-- The data is not being refreshed; only the old games are in the database. Please create a system to refresh the data daily, maybe using a render cron job

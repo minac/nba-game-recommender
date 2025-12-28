@@ -2,12 +2,39 @@ services:
   - type: web
     name: nba-game-recommender
     runtime: python
-    plan: free
-    # Build installs deps and syncs NBA data to SQLite (takes ~2-3 min due to rate limiting)
-    buildCommand: pip install uv && uv sync && uv run python src/interfaces/sync_cli.py --days 7
+    plan: starter
+    # Persistent disk for SQLite database
+    disk:
+      name: nba-data
+      mountPath: /data
+      sizeGB: 1
+    buildCommand: pip install uv && uv sync
     startCommand: uv run gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 'src.interfaces.web.app:app'
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PORT
         generateValue: true
+      - key: DATABASE_PATH
+        value: /data/nba_games.db
+      - key: SYNC_TOKEN
+        generateValue: true
+
+  - type: cron
+    name: nba-data-sync
+    runtime: python
+    plan: starter
+    schedule: "0 9 * * *" # Daily at 9am UTC (after US games finish)
+    buildCommand: pip install uv && uv sync
+    startCommand: |
+      curl -X POST "https://nba-game-recommender.onrender.com/api/sync" \
+        -H "X-Sync-Token: $SYNC_TOKEN" \
+        -H "Content-Type: application/json"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SYNC_TOKEN
+        fromService:
+          name: nba-game-recommender
+          type: web
+          envVarKey: SYNC_TOKEN

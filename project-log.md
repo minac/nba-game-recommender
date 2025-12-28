@@ -1,12 +1,26 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Lowered favorite team bonus
+current_focus: Daily data sync via Render cron job
 blockers: none
-next_steps: Review PR #80, then work on daily data refresh
-last_updated: 2025-12-28 12:00
+next_steps: Merge PR #81, verify Render deployment
+last_updated: 2025-12-28 16:00
 -->
 
 # Project Log
+
+## 2025-12-28 16:00
+
+**Did:** Added daily data sync via Render cron job (PR #81)
+
+- Added persistent disk to web service for SQLite persistence
+- Created `/api/sync` endpoint with token authentication
+- Added cron job service that syncs data daily at 9am UTC
+- Supports `DATABASE_PATH` env var for production paths
+- Fixed broken `clear_cache.py` step in CD workflow
+
+**Learned:** Render cron jobs are separate services that can't share disk with web services. Solution: cron job calls an HTTP endpoint on the web service which has the persistent disk.
+
+---
 
 ## 2025-12-28 12:00
 
