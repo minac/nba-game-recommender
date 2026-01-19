@@ -52,3 +52,4 @@ config.local.yaml
 
 # Testing
 .pytest_cache/
+.playwright-mcp/
