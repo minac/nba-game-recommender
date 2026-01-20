@@ -13,8 +13,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: PORT
-        generateValue: true
       - key: DATABASE_PATH
         value: /data/nba_games.db
       - key: SYNC_TOKEN
