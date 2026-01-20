@@ -1,12 +1,35 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Render cron job sync working
+current_focus: Naming unification complete
 blockers: none
-next_steps: Monitor daily syncs
-last_updated: 2025-12-28 21:35
+next_steps: Delete nba-frontend on Render, rename cron job
+last_updated: 2025-01-20
 -->
 
 # Project Log
+
+## 2025-01-20
+
+**Did:** Unified app naming to `nba-game-recommender`
+
+Standardized on single naming convention across all services:
+
+- Package: `nba-game-recommender`
+- Web service: `nba-game-recommender`
+- Cron job: `nba-game-recommender-sync` (was `nba-data-sync`)
+- URL: `nba-game-recommender.onrender.com`
+
+Changes made:
+
+- Updated `render.yaml` cron job name from `nba-data-sync` to `nba-game-recommender-sync`
+- Updated `render.yaml` sync URL to `nba-game-recommender.onrender.com`
+
+Manual Render cleanup needed:
+
+- Delete suspended `nba-frontend` service (obsolete)
+- Rename/recreate cron job as `nba-game-recommender-sync`
+
+---
 
 ## 2025-12-28 21:35
 

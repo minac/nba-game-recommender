@@ -19,13 +19,13 @@ services:
         generateValue: true
 
   - type: cron
-    name: nba-data-sync
+    name: nba-game-recommender-sync
     runtime: python
     plan: starter
     schedule: "0 9 * * *" # Daily at 9am UTC (after US games finish)
     buildCommand: pip install uv && uv sync
     startCommand: |
-      curl -X POST "https://nba-engaging-game-week.onrender.com/api/sync" \
+      curl -X POST "https://nba-game-recommender.onrender.com/api/sync" \
         -H "X-Sync-Token: $SYNC_TOKEN" \
         -H "Content-Type: application/json"
     envVars:
