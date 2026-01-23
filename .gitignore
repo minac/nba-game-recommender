@@ -53,3 +53,6 @@ config.local.yaml
 # Testing
 .pytest_cache/
 .playwright-mcp/
+
+# Task tracking
+todo.md
