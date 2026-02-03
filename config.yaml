@@ -10,12 +10,6 @@ scoring:
   star_power_weight: 20 # Points per star player
   favorite_team_bonus: 20 # Bonus if favorite team plays
 
-# API Configuration
-api:
-  host: "0.0.0.0"
-  port: 3000
-  debug: false
-
 # Web Configuration
 web:
   host: "0.0.0.0"
