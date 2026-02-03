@@ -14,10 +14,13 @@ src/
 ├── utils/
 │   ├── logger.py           # Centralized logging
 │   └── database.py         # SQLite database
+├── services/
+│   └── game_service.py     # Business logic layer
 └── interfaces/
     ├── cli.py              # Command-line
     ├── sync_cli.py         # Data sync CLI
-    └── web/app.py          # Flask API + Web UI
+    └── web/
+        └── app.py          # Flask API + Web UI
 
 trmnl/src/                  # Liquid templates for e-ink
 ```
@@ -75,8 +78,14 @@ Clear and resync: `rm data/nba_games.db && uv run python src/interfaces/sync_cli
 
 Liquid templates in `trmnl/src/`: `full.liquid`, `half_horizontal.liquid`, `half_vertical.liquid`, `quadrant.liquid`
 
+## Environment Variables
+
+- `DATABASE_PATH` - SQLite database path (default: `data/nba_games.db`, production: `/data/nba_games.db`)
+- `SYNC_TOKEN` - Authentication token for `/api/sync` endpoint (production only)
+
 ## Project-Specific Notes
 
-- Sync data before first use
+- Sync data before first use: `uv run python src/interfaces/sync_cli.py`
 - Use `get_logger(__name__)` from `src.utils.logger`
 - All scoring weights in `config.yaml`
+- Production runs on Render with persistent disk at `/data` for SQLite database

@@ -137,6 +137,11 @@ rm data/nba_games.db && uv run python src/interfaces/sync_cli.py  # Reset
 
 See `config.yaml` for scoring weights and settings.
 
+**Environment Variables** (production only):
+
+- `DATABASE_PATH` - Path to SQLite database (default: `data/nba_games.db`, Render uses `/data/nba_games.db`)
+- `SYNC_TOKEN` - Token for `/api/sync` endpoint authentication (auto-generated on Render)
+
 ## Documentation
 
 See `CLAUDE.md` for technical documentation.
