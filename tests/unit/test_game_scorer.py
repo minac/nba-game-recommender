@@ -21,6 +21,7 @@ class TestGameScorer:
         assert scorer.high_score_bonus == 10
         assert scorer.star_power_weight == 20
         assert scorer.favorite_team_bonus == 20
+        assert scorer.buzz_bonus == 40
 
     def test_initialization_with_custom_config(self):
         """Test GameScorer initializes with custom config values."""
@@ -31,6 +32,7 @@ class TestGameScorer:
             "high_score_bonus": 15,
             "star_power_weight": 25,
             "favorite_team_bonus": 80,
+            "buzz_bonus": 50,
         }
         scorer = GameScorer(custom_config)
         assert scorer.top5_team_bonus == 60
@@ -39,6 +41,7 @@ class TestGameScorer:
         assert scorer.high_score_bonus == 15
         assert scorer.star_power_weight == 25
         assert scorer.favorite_team_bonus == 80
+        assert scorer.buzz_bonus == 50
 
     def test_top5_teams_both(self):
         """Test scoring when both teams are top 5."""
@@ -264,6 +267,7 @@ class TestGameScorer:
         assert "total_points" in result["breakdown"]
         assert "star_power" in result["breakdown"]
         assert "favorite_team" in result["breakdown"]
+        assert "buzz" in result["breakdown"]
 
     def test_high_score_bonus_calculation(self):
         """Test that the high score bonus is calculated correctly."""
@@ -278,6 +282,27 @@ class TestGameScorer:
         # 100 (close) + 10 (high score bonus) = 110
         assert result["score"] == 110.0
         assert result["breakdown"]["total_points"]["points"] == 10
+
+    def test_buzz_score_included_in_total(self):
+        """Test that buzz score is added to total."""
+        game = get_sample_game(buzz_score=30, buzz_reasoning="Buzzer beater finish")
+        result = self.scorer.score_game(game)
+
+        assert result["breakdown"]["buzz"]["points"] == 30
+        assert result["breakdown"]["buzz"]["reasoning"] == "Buzzer beater finish"
+        # Score should include buzz
+        assert result["score"] >= 30
+
+    def test_buzz_score_zero_when_absent(self):
+        """Test that buzz score defaults to 0 when not present."""
+        game = get_sample_game()
+        # Remove buzz fields to simulate old data
+        del game["buzz_score"]
+        del game["buzz_reasoning"]
+        result = self.scorer.score_game(game)
+
+        assert result["breakdown"]["buzz"]["points"] == 0
+        assert result["breakdown"]["buzz"]["reasoning"] == ""
 
     def test_margin_calculation_uses_absolute_value(self):
         """Test that margin is calculated correctly regardless of which team won."""

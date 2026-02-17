@@ -1,13 +1,14 @@
 # NBA Game Recommender
 
-Recommends the most engaging NBA game from the past week. Scores games on closeness, star power, top teams. Supports CLI, REST API, Web UI, and TRMNL e-ink display.
+Recommends the most engaging NBA game from the past week. Scores games on closeness, star power, top teams, and AI-detected online buzz. Supports CLI, REST API, Web UI, and TRMNL e-ink display.
 
 ## Architecture
 
 ```
 src/
 ├── core/
-│   ├── game_scorer.py      # Scoring algorithm (5 criteria)
+│   ├── buzz_scorer.py      # AI buzz scoring via Claude API
+│   ├── game_scorer.py      # Scoring algorithm (6 criteria)
 │   └── recommender.py      # Orchestration
 ├── api/
 │   └── nba_api_client.py   # nba_api + SQLite caching
@@ -32,6 +33,7 @@ trmnl/src/                  # Liquid templates for e-ink
 3. **High Score** (10 pts) - If total >= 200
 4. **Star Power** (20 pts/star) - Top 30 scorers
 5. **Favorite Team** (20 pts) - User preference
+6. **AI Buzz** (up to 40 pts) - Claude API + web search for online buzz/excitement
 
 Weights configurable in `config.yaml`.
 
@@ -70,7 +72,7 @@ curl -X POST http://localhost:8080/recommend \
 
 SQLite at `data/nba_games.db`:
 
-- `teams`, `standings`, `players`, `games`, `game_players`, `sync_log`
+- `teams`, `standings`, `players`, `games`, `game_players`, `game_buzz`, `sync_log`
 
 Clear and resync: `rm data/nba_games.db && uv run python src/interfaces/sync_cli.py`
 
@@ -82,6 +84,7 @@ Liquid templates in `trmnl/src/`: `full.liquid`, `half_horizontal.liquid`, `half
 
 - `DATABASE_PATH` - SQLite database path (default: `data/nba_games.db`, production: `/data/nba_games.db`)
 - `SYNC_TOKEN` - Authentication token for `/api/sync` endpoint (production only)
+- `ANTHROPIC_API_KEY` - Anthropic API key for AI buzz scoring (optional; locally reads from macOS keychain `anthropic-api-key`)
 
 ## Project-Specific Notes
 
