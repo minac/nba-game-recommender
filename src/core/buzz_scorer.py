@@ -6,6 +6,7 @@ by searching for articles, social media mentions, and news coverage.
 
 import json
 import os
+import re
 import subprocess
 from typing import Dict, List, Optional
 
@@ -179,17 +180,26 @@ Return ONLY the JSON object, no other text."""
             logger.warning("No text in Claude response")
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
-        # Extract JSON from response (handle markdown code blocks)
+        # Extract JSON from response — Claude may include preamble text
         json_str = text.strip()
-        if json_str.startswith("```"):
-            # Remove code fence
-            lines = json_str.split("\n")
-            json_str = "\n".join(lines[1:-1])
+
+        # Try markdown code fence first
+        if "```" in json_str:
+            match = re.search(r"```(?:json)?\s*\n(.*?)\n```", json_str, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+
+        # If that didn't work, find the outermost { ... }
+        if not json_str.startswith("{"):
+            brace_start = json_str.find("{")
+            brace_end = json_str.rfind("}")
+            if brace_start != -1 and brace_end != -1:
+                json_str = json_str[brace_start : brace_end + 1]
 
         try:
             scores = json.loads(json_str)
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse buzz scores JSON: {text[:200]}")
+            logger.warning(f"Failed to parse buzz scores JSON: {text[:300]}")
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
         # Validate and clamp scores
