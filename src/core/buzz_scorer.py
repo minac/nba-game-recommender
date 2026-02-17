@@ -138,23 +138,42 @@ Respond with ONLY a JSON object mapping each game ID to a score (0-40) and brief
 Score guide: 0 = no buzz, 10 = below average, 20 = average coverage, 30 = significant buzz, 40 = massive viral moment.
 Return ONLY the JSON object, no other text."""
 
+        messages = [{"role": "user", "content": prompt}]
+        tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+
+        # Loop to handle pause_turn (Claude pauses after web searches)
         response = self.client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=1024,
-            tools=[{"type": "web_search_20250305"}],
-            messages=[{"role": "user", "content": prompt}],
+            max_tokens=4096,
+            tools=tools,
+            messages=messages,
         )
+
+        # Continue if Claude paused after web search (up to 3 continuations)
+        for _ in range(3):
+            if response.stop_reason != "pause_turn":
+                break
+            # Pass response back and continue
+            messages = messages + [
+                {"role": "assistant", "content": response.content},
+                {"role": "user", "content": "Continue."},
+            ]
+            response = self.client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=4096,
+                tools=tools,
+                messages=messages,
+            )
 
         return self._parse_response(response, games)
 
     def _parse_response(self, response, games: List[Dict]) -> Dict[str, Dict]:
         """Parse Claude's response into buzz scores."""
-        # Extract text from response (may have multiple content blocks)
+        # Extract last text block from response (web search results come first)
         text = ""
         for block in response.content:
             if hasattr(block, "text"):
                 text = block.text
-                break
 
         if not text:
             logger.warning("No text in Claude response")
