@@ -142,6 +142,17 @@ class NBADatabase:
                 )
             """)
 
+            # Game buzz scores (AI-generated engagement scores)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_buzz (
+                    game_id TEXT PRIMARY KEY,
+                    score REAL NOT NULL,
+                    reasoning TEXT,
+                    scored_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (game_id) REFERENCES games(id)
+                )
+            """)
+
             # Sync metadata (track when data was last synced)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sync_metadata (
@@ -511,11 +522,52 @@ class NBADatabase:
 
             return stats
 
+    # Buzz score operations
+    def upsert_buzz_score(self, game_id: str, score: float, reasoning: str = None):
+        """Insert or update a buzz score for a game."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO game_buzz (game_id, score, reasoning, scored_at)
+                VALUES (?, ?, ?, ?)
+            """,
+                (game_id, score, reasoning, datetime.now().isoformat()),
+            )
+
+    def get_buzz_score(self, game_id: str) -> Optional[Dict]:
+        """Get buzz score for a game."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT score, reasoning FROM game_buzz WHERE game_id = ?",
+                (game_id,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_buzz_scores(self, game_ids: list) -> Dict[str, Dict]:
+        """Get buzz scores for multiple games."""
+        if not game_ids:
+            return {}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            placeholders = ",".join("?" for _ in game_ids)
+            cursor.execute(
+                f"SELECT game_id, score, reasoning FROM game_buzz WHERE game_id IN ({placeholders})",
+                game_ids,
+            )
+            return {
+                row["game_id"]: {"score": row["score"], "reasoning": row["reasoning"]}
+                for row in cursor.fetchall()
+            }
+
     def clear_all(self):
         """Clear all data from the database."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             for table in [
+                "game_buzz",
                 "game_players",
                 "games",
                 "standings",

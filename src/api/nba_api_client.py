@@ -162,6 +162,10 @@ class NBAClient:
 
     def _format_games_from_db(self, db_games: List[Dict]) -> List[Dict]:
         """Format database game records to match expected output format."""
+        # Batch-fetch buzz scores for all games
+        game_ids = [g["game_id"] for g in db_games]
+        buzz_scores = self.db.get_buzz_scores(game_ids)
+
         games = []
         for game in db_games:
             game_id = game["game_id"]
@@ -171,6 +175,9 @@ class NBAClient:
 
             home_score = game["home_score"] or 0
             away_score = game["away_score"] or 0
+
+            # Get buzz score if available
+            buzz = buzz_scores.get(game_id, {})
 
             game_info = {
                 "game_id": game_id,
@@ -188,6 +195,8 @@ class NBAClient:
                 "total_points": home_score + away_score,
                 "final_margin": abs(home_score - away_score),
                 "star_players_count": star_count,
+                "buzz_score": buzz.get("score", 0),
+                "buzz_reasoning": buzz.get("reasoning", ""),
             }
             games.append(game_info)
 
@@ -602,9 +611,80 @@ class NBASyncService:
         except Exception as e:
             logger.warning(f"Error syncing players for game {game_id}: {e}")
 
+    def sync_buzz_scores(self, days: int = 14) -> int:
+        """Score games for online buzz using Claude API with web search.
+
+        Args:
+            days: Number of days of games to score
+
+        Returns:
+            Number of games scored
+        """
+        from src.core.buzz_scorer import BuzzScorer
+
+        scorer = BuzzScorer()
+        if not scorer.available:
+            logger.info("Buzz scoring skipped: no Anthropic API key configured")
+            return 0
+
+        # Get recent games that need buzz scoring
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=1)
+        start_date = end_date - timedelta(days=days)
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+
+        db_games = self.db.get_games_in_range(start_str, end_str)
+        if not db_games:
+            logger.info("No games to score for buzz")
+            return 0
+
+        # Filter out games that already have buzz scores
+        existing_buzz = self.db.get_buzz_scores([g["game_id"] for g in db_games])
+        games_to_score = [g for g in db_games if g["game_id"] not in existing_buzz]
+
+        if not games_to_score:
+            logger.info("All games already have buzz scores")
+            return 0
+
+        # Format games for the scorer
+        formatted_games = []
+        for g in games_to_score:
+            home_score = g["home_score"] or 0
+            away_score = g["away_score"] or 0
+            formatted_games.append(
+                {
+                    "game_id": g["game_id"],
+                    "game_date": g["game_date"],
+                    "home_team": {"abbr": g["home_abbr"], "score": home_score},
+                    "away_team": {"abbr": g["away_abbr"], "score": away_score},
+                    "total_points": home_score + away_score,
+                    "final_margin": abs(home_score - away_score),
+                }
+            )
+
+        logger.info(f"Scoring {len(formatted_games)} games for buzz...")
+        buzz_results = scorer.score_games(formatted_games)
+
+        # Store results in database
+        count = 0
+        for game_id, result in buzz_results.items():
+            if result["score"] > 0 or result["reasoning"]:
+                self.db.upsert_buzz_score(
+                    game_id=game_id,
+                    score=result["score"],
+                    reasoning=result["reasoning"],
+                )
+                count += 1
+
+        self.db.set_last_sync("buzz_scores", f"Scored {count} games for buzz")
+        logger.info(f"Buzz scoring complete: {count} games scored")
+        return count
+
     def sync_all(self, days: int = 14) -> Dict[str, int]:
         """
-        Sync all data: teams, standings, star players, and games.
+        Sync all data: teams, standings, star players, games, and buzz scores.
 
         Args:
             days: Number of days of games to sync
@@ -619,6 +699,7 @@ class NBASyncService:
             "standings": self.sync_standings(),
             "star_players": self.sync_star_players(),
             "games": self.sync_games(days),
+            "buzz_scores": self.sync_buzz_scores(days),
         }
 
         logger.info(f"Full sync complete: {results}")

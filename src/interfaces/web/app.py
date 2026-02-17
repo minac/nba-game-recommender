@@ -275,6 +275,10 @@ def trmnl_webhook():
                 ),
                 "points": f"{breakdown.get('favorite_team', {}).get('points', 0):.1f}",
             },
+            "buzz": {
+                "points": f"{breakdown.get('buzz', {}).get('points', 0):.1f}",
+                "reasoning": breakdown.get("buzz", {}).get("reasoning", ""),
+            },
         }
 
         # Return data at root level for TRMNL polling strategy

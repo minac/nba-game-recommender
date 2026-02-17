@@ -19,6 +19,7 @@ class GameScorer:
         self.high_score_bonus = config.get("high_score_bonus", 10)
         self.star_power_weight = config.get("star_power_weight", 20)
         self.favorite_team_bonus = config.get("favorite_team_bonus", 20)
+        self.buzz_bonus = config.get("buzz_bonus", 40)
 
     def score_game(
         self, game: Dict, favorite_team: Optional[str] = None, top5_teams: set = None
@@ -98,5 +99,11 @@ class GameScorer:
             "has_favorite": has_favorite,
             "points": self.favorite_team_bonus if has_favorite else 0,
         }
+
+        # Criterion 6: AI buzz score (pre-computed during sync)
+        buzz_score = game.get("buzz_score", 0)
+        score += buzz_score
+        buzz_reasoning = game.get("buzz_reasoning", "")
+        breakdown["buzz"] = {"points": buzz_score, "reasoning": buzz_reasoning}
 
         return {"score": round(score, 2), "breakdown": breakdown}

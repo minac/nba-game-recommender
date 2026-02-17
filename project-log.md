@@ -1,12 +1,30 @@
 <!-- AGENT_CONTEXT
 status: active development
-current_focus: Naming unification complete
+current_focus: AI buzz scoring added
 blockers: none
-next_steps: Delete nba-frontend on Render, rename cron job
-last_updated: 2025-01-20
+next_steps: Store Anthropic API key in macOS keychain and production env, test with live sync
+last_updated: 2026-02-17
 -->
 
 # Project Log
+
+## 2026-02-17
+
+**Did:** Added AI buzz scoring via Claude API with web search (6th scoring criterion, up to 40 pts)
+
+New `BuzzScorer` module uses Anthropic's Messages API with web search tool to evaluate how much online buzz each game generated — searching for articles, social media, and news coverage. Runs at sync time and caches in SQLite so recommendations stay instant.
+
+- Created `src/core/buzz_scorer.py` with Claude API integration and web search
+- Added `game_buzz` table to SQLite database
+- Integrated buzz as criterion 6 in `GameScorer` (0-40 pts)
+- API key sourced from macOS keychain (`security` CLI) with `ANTHROPIC_API_KEY` env var fallback
+- Graceful degradation: no API key = buzz score of 0 (feature is opt-in)
+- Updated all display surfaces: CLI, web API, TRMNL, detailed explain mode
+- 135 tests passing (was 115, added 20 new buzz scorer tests)
+
+**Learned:** Python 3.11 f-strings don't support nested quotes of the same type — extract variables before the template string to avoid `SyntaxError: unmatched '['`.
+
+---
 
 ## 2025-01-20
 

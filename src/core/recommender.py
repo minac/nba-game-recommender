@@ -139,6 +139,11 @@ class GameRecommender:
             f"Stars: {breakdown['star_power']['count']} × {config['star_power_weight']} = {breakdown['star_power']['points']:.1f}"
         )
 
+        if breakdown.get("buzz", {}).get("points", 0) > 0:
+            buzz = breakdown["buzz"]
+            reasoning = f" ({buzz['reasoning']})" if buzz.get("reasoning") else ""
+            parts.append(f"Buzz: {buzz['points']:.1f}{reasoning}")
+
         if breakdown["favorite_team"]["has_favorite"]:
             parts.append(f"Favorite Team: +{breakdown['favorite_team']['points']:.1f}")
 
@@ -170,6 +175,12 @@ class GameRecommender:
         if explain:
             # Detailed explanation mode
             config = self.scorer.__dict__
+            buzz_data = breakdown.get("buzz", {})
+            buzz_pts = buzz_data.get("points", 0)
+            buzz_reason = buzz_data.get("reasoning", "")
+            buzz_reason_display = (
+                f"Reason: {buzz_reason}" if buzz_reason else "No buzz data available"
+            )
             summary = f"""
 {"=" * 60}
 🏀 MOST ENGAGING GAME 🏀
@@ -216,11 +227,15 @@ DETAILED SCORING EXPLANATION:
    Has Favorite Team: {"Yes" if breakdown["favorite_team"]["has_favorite"] else "No"}
    Points Awarded: {breakdown["favorite_team"]["points"]:.1f} points
 
+6. AI BUZZ (Max: {config["buzz_bonus"]} pts)
+   Score: {buzz_pts:.1f} points
+   {buzz_reason_display}
+
 {"=" * 60}
 FINAL CALCULATION:
 {"=" * 60}
 
-Base Score: {breakdown["top5_teams"]["points"]:.1f} + {breakdown["close_game"]["points"]:.1f} + {breakdown["star_power"]["points"]:.1f} + {breakdown["favorite_team"]["points"]:.1f}
+Base Score: {breakdown["top5_teams"]["points"]:.1f} + {breakdown["close_game"]["points"]:.1f} + {breakdown["star_power"]["points"]:.1f} + {breakdown["favorite_team"]["points"]:.1f} + {buzz_pts:.1f}
 {"After Penalty: × 0.1 (low total points)" if breakdown["total_points"].get("penalty_applied") else ""}
 FINAL SCORE: {score:.2f}
 
@@ -245,6 +260,7 @@ Score Breakdown:
   • Close Game: ({breakdown["close_game"]["points"]:.1f} pts)
   • Total Points: {breakdown["total_points"]["total"]} (threshold: {breakdown["total_points"]["threshold_met"]})
   • Star Players: {breakdown["star_power"]["count"]} ({breakdown["star_power"]["points"]:.1f} pts)
+  • AI Buzz: {breakdown.get("buzz", {}).get("points", 0):.1f} pts
   • Favorite Team: {"Yes" if breakdown["favorite_team"]["has_favorite"] else "No"} ({breakdown["favorite_team"]["points"]:.1f} pts)
 
 {"=" * 60}

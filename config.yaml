@@ -9,6 +9,7 @@ scoring:
   high_score_bonus: 10 # Bonus for games with 200+ total points
   star_power_weight: 20 # Points per star player
   favorite_team_bonus: 20 # Bonus if favorite team plays
+  buzz_bonus: 40 # Max bonus for AI-detected online buzz (requires Anthropic API key)
 
 # Web Configuration
 web:

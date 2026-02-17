@@ -23,6 +23,8 @@ def get_sample_game(
     star_players=4,
     game_date="2024-01-15",
     game_id="0022300123",
+    buzz_score=0,
+    buzz_reasoning="",
 ):
     """
     Create a sample game dictionary.
@@ -35,6 +37,8 @@ def get_sample_game(
         star_players: Number of star players
         game_date: Game date string
         game_id: Game ID
+        buzz_score: AI buzz score (0-40)
+        buzz_reasoning: Reason for buzz score
 
     Returns:
         Game dictionary
@@ -55,6 +59,8 @@ def get_sample_game(
         "total_points": home_score + away_score,
         "final_margin": abs(home_score - away_score),
         "star_players_count": star_players,
+        "buzz_score": buzz_score,
+        "buzz_reasoning": buzz_reasoning,
     }
 
 
@@ -67,6 +73,7 @@ def get_sample_config():
         "high_score_bonus": 10,
         "star_power_weight": 20,
         "favorite_team_bonus": 20,
+        "buzz_bonus": 40,
     }
 
 
