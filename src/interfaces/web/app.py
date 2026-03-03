@@ -10,13 +10,17 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
+import structlog
+
 from src.core.recommender import GameRecommender
 from src.services.game_service import GameService
 from src.api.nba_api_client import NBASyncService
-from src.utils.logger import get_logger
+from src.utils.logging_config import setup_logging
 import yaml
 
-logger = get_logger(__name__)
+setup_logging()
+
+log = structlog.get_logger(__name__)
 
 # Sync token for protected endpoint (set via SYNC_TOKEN env var)
 SYNC_TOKEN = os.environ.get("SYNC_TOKEN")
@@ -57,13 +61,13 @@ def get_cached_or_fetch(cache_key: str, fetch_func, ttl_seconds: int = 300):
         age = (datetime.now() - cached_time).total_seconds()
 
         if age < ttl_seconds:
-            logger.info(f"Cache HIT for {cache_key} (age: {age:.1f}s)")
+            log.info("cache_hit", key=cache_key, age_seconds=round(age, 1))
             return cached_data
         else:
-            logger.info(f"Cache EXPIRED for {cache_key} (age: {age:.1f}s)")
+            log.info("cache_expired", key=cache_key, age_seconds=round(age, 1))
 
     # Cache miss or expired - fetch fresh data
-    logger.info(f"Cache MISS for {cache_key} - fetching fresh data")
+    log.info("cache_miss", key=cache_key)
     fresh_data = fetch_func()
     _request_cache[cache_key] = (fresh_data, datetime.now())
 
@@ -86,7 +90,7 @@ def index():
 @app.route("/api/health")
 def health():
     """Health check endpoint."""
-    logger.info("GET /api/health")
+    log.info("health_check")
     return jsonify({"status": "ok"})
 
 
@@ -100,16 +104,16 @@ def sync_data():
     Returns:
         JSON with sync results or error
     """
-    logger.info("POST /api/sync - Starting data sync")
+    log.info("sync_request_received")
 
     # Verify sync token
     provided_token = request.headers.get("X-Sync-Token")
     if not SYNC_TOKEN:
-        logger.warning("SYNC_TOKEN not configured - sync endpoint disabled")
+        log.warning("sync_token_not_configured")
         return jsonify({"success": False, "error": "Sync endpoint not configured"}), 503
 
     if not provided_token or provided_token != SYNC_TOKEN:
-        logger.warning("Invalid or missing sync token")
+        log.warning("invalid_sync_token")
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     try:
@@ -121,7 +125,7 @@ def sync_data():
         global _request_cache
         _request_cache = {}
 
-        logger.info(f"Sync completed successfully: {results}")
+        log.info("sync_complete", **results)
         return jsonify(
             {
                 "success": True,
@@ -132,7 +136,7 @@ def sync_data():
         )
 
     except Exception as e:
-        logger.error(f"Sync failed: {e}")
+        log.error("sync_failed", error=str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -144,9 +148,7 @@ def recommend():
     favorite_team = data.get("favorite_team")
     show_all = data.get("show_all", False)
 
-    logger.info(
-        f"POST /recommend - days={days}, team={favorite_team}, show_all={show_all}"
-    )
+    log.info("post_recommend", days=days, team=favorite_team, show_all=show_all)
 
     # Use shared service (handles validation and error handling)
     if show_all:
@@ -154,9 +156,7 @@ def recommend():
         cache_key = f"ranked_games_{days}_{favorite_team}"
         response = get_cached_or_fetch(
             cache_key,
-            lambda: game_service.get_all_games_ranked(
-                days=days, favorite_team=favorite_team
-            ),
+            lambda: game_service.get_all_games_ranked(days=days, favorite_team=favorite_team),
             ttl_seconds=_cache_ttl_seconds,
         )
 
@@ -172,7 +172,7 @@ def recommend():
             else:
                 return jsonify(response), 500
 
-        logger.info(f"Returning {response['count']} ranked games")
+        log.info("returning_ranked_games", count=response["count"])
         # Format response for web client
         return jsonify(
             {
@@ -203,7 +203,7 @@ def recommend():
             else:
                 return jsonify(response), 500
 
-        logger.info("Best game recommendation returned successfully")
+        log.info("best_game_returned")
         # Format response for web client
         return jsonify({"success": True, "show_all": False, "game": response["data"]})
 
@@ -223,16 +223,16 @@ def trmnl_webhook():
     days = request.args.get("days", 7)
     favorite_team = request.args.get("team", "").upper() or None
 
-    logger.info(f"GET /api/trmnl - days={days}, team={favorite_team}")
+    log.info("get_trmnl", days=days, team=favorite_team)
 
     # Clamp days to TRMNL's preferred range (1-14)
     try:
         days_int = int(days)
         if days_int < 1 or days_int > 14:
-            logger.warning(f"Invalid days parameter {days}, using default: 7")
+            log.warning("invalid_days_parameter", days=days, default=7)
             days = 7
     except (ValueError, TypeError):
-        logger.warning(f"Invalid days parameter {days}, using default: 7")
+        log.warning("invalid_days_parameter", days=days, default=7)
         days = 7
 
     # Use shared service
@@ -260,9 +260,7 @@ def trmnl_webhook():
             },
             "total_points": {
                 "total": breakdown.get("total_points", {}).get("total", 0),
-                "threshold_met": breakdown.get("total_points", {}).get(
-                    "threshold_met", False
-                ),
+                "threshold_met": breakdown.get("total_points", {}).get("threshold_met", False),
                 "points": f"{breakdown.get('total_points', {}).get('points', 0):.1f}",
             },
             "star_power": {
@@ -270,9 +268,7 @@ def trmnl_webhook():
                 "points": f"{breakdown.get('star_power', {}).get('points', 0):.1f}",
             },
             "favorite_team": {
-                "has_favorite": breakdown.get("favorite_team", {}).get(
-                    "has_favorite", False
-                ),
+                "has_favorite": breakdown.get("favorite_team", {}).get("has_favorite", False),
                 "points": f"{breakdown.get('favorite_team', {}).get('points', 0):.1f}",
             },
             "buzz": {
@@ -288,7 +284,7 @@ def trmnl_webhook():
             "breakdown": formatted_breakdown,
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
-        logger.info("TRMNL polling endpoint returned game recommendation successfully")
+        log.info("trmnl_recommendation_returned")
         return jsonify(data)
     else:
         # No games found or error - return appropriate state
@@ -296,7 +292,7 @@ def trmnl_webhook():
         error_message = response.get("error", "Unknown error")
 
         if error_code == "NO_GAMES":
-            logger.warning(f"No games found for TRMNL polling endpoint (days={days})")
+            log.warning("no_games_for_trmnl", days=days)
             # Return empty state at root level
             data = {
                 "game": None,
@@ -308,7 +304,7 @@ def trmnl_webhook():
             return jsonify(data)
         else:
             # Return error state for TRMNL display
-            logger.error(f"Error in /api/trmnl: {error_message}")
+            log.error("trmnl_error", error=error_message)
             data = {
                 "game": None,
                 "score": "0",
@@ -325,10 +321,7 @@ def main():
     host = web_config.get("host", "0.0.0.0")
     port = web_config.get("port", 8080)
 
-    logger.info(
-        f"🏀 NBA Game Recommender Web Interface starting on http://{host}:{port}"
-    )
-    logger.info(f"Open your browser and navigate to http://localhost:{port}")
+    log.info("web_server_starting", host=host, port=port)
 
     app.run(host=host, port=port, debug=True)
 

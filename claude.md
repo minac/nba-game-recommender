@@ -13,7 +13,8 @@ src/
 ├── api/
 │   └── nba_api_client.py   # nba_api + SQLite caching
 ├── utils/
-│   ├── logger.py           # Centralized logging
+│   ├── logger.py           # Thin structlog wrapper (get_logger)
+│   ├── logging_config.py   # structlog JSONL config (setup_logging)
 │   └── database.py         # SQLite database
 ├── services/
 │   └── game_service.py     # Business logic layer
@@ -89,6 +90,6 @@ Liquid templates in `trmnl/src/`: `full.liquid`, `half_horizontal.liquid`, `half
 ## Project-Specific Notes
 
 - Sync data before first use: `uv run python src/interfaces/sync_cli.py`
-- Use `get_logger(__name__)` from `src.utils.logger`
+- Use `structlog.get_logger(__name__)` for logging; JSONL output to `logs/app.jsonl`
 - All scoring weights in `config.yaml`
 - Production runs on Render with persistent disk at `/data` for SQLite database

@@ -10,9 +10,9 @@ import re
 import subprocess
 from typing import Dict, List, Optional
 
-from src.utils.logger import get_logger
+import structlog
 
-logger = get_logger(__name__)
+log = structlog.get_logger(__name__)
 
 MAX_BUZZ_SCORE = 40
 
@@ -41,7 +41,7 @@ def _get_api_key() -> Optional[str]:
             timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
-            logger.info("Loaded Anthropic API key from macOS keychain")
+            log.info("loaded_api_key", source="macOS keychain")
             return result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
@@ -49,7 +49,7 @@ def _get_api_key() -> Optional[str]:
     # Fall back to environment variable
     key = os.environ.get("ANTHROPIC_API_KEY")
     if key:
-        logger.info("Loaded Anthropic API key from environment variable")
+        log.info("loaded_api_key", source="environment variable")
         return key
 
     return None
@@ -88,7 +88,7 @@ class BuzzScorer:
             Score is 0-40. Returns all zeros on failure.
         """
         if not self.available:
-            logger.info("Buzz scoring skipped: no API key configured")
+            log.info("buzz_scoring_skipped", reason="no API key configured")
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
         if not games:
@@ -97,7 +97,7 @@ class BuzzScorer:
         try:
             return self._call_claude(games)
         except Exception as e:
-            logger.error(f"Buzz scoring failed: {e}")
+            log.error("buzz_scoring_failed", error=str(e))
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
     def _format_game_list(self, games: List[Dict]) -> str:
@@ -177,7 +177,7 @@ Return ONLY the JSON object, no other text."""
                 text = block.text
 
         if not text:
-            logger.warning("No text in Claude response")
+            log.warning("no_text_in_claude_response")
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
         # Extract JSON from response — Claude may include preamble text
@@ -199,7 +199,7 @@ Return ONLY the JSON object, no other text."""
         try:
             scores = json.loads(json_str)
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse buzz scores JSON: {text[:300]}")
+            log.warning("failed_to_parse_buzz_json", text_preview=text[:300])
             return {g["game_id"]: {"score": 0, "reasoning": ""} for g in games}
 
         # Validate and clamp scores

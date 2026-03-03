@@ -17,10 +17,12 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.nba_api_client import NBASyncService
-from src.utils.logger import get_logger
+import structlog
 
-logger = get_logger(__name__)
+from src.api.nba_api_client import NBASyncService
+from src.utils.logging_config import setup_logging
+
+log = structlog.get_logger(__name__)
 
 
 def main():
@@ -88,6 +90,7 @@ Examples:
     )
 
     args = parser.parse_args()
+    setup_logging()
 
     try:
         sync_service = NBASyncService(config_path=args.config)
@@ -97,37 +100,32 @@ Examples:
             return
 
         if args.force:
-            logger.warning("Force flag set - clearing existing data...")
+            log.warning("force_clearing_data")
             sync_service.db.clear_all()
 
         if args.metadata_only:
-            logger.info("Syncing NBA metadata (teams, standings, star players)...")
+            log.info("syncing_metadata")
             results = {
                 "teams": sync_service.sync_teams(),
                 "standings": sync_service.sync_standings(),
                 "star_players": sync_service.sync_star_players(),
             }
         elif args.games_only:
-            logger.info(f"Syncing NBA games for last {args.days} days...")
+            log.info("syncing_games_only", days=args.days)
             results = {"games": sync_service.sync_games(days=args.days)}
         else:
-            logger.info(f"Starting full NBA data sync (last {args.days} days)...")
-            logger.info("This may take a few minutes due to rate limiting.")
+            log.info("starting_full_sync", days=args.days)
             results = sync_service.sync_all(days=args.days)
 
-        logger.info("=" * 50)
-        logger.info("Sync Complete!")
-        logger.info("=" * 50)
-        for key, value in results.items():
-            logger.info(f"  {key}: {value}")
+        log.info("sync_complete", **results)
 
         log_status(sync_service)
 
     except KeyboardInterrupt:
-        logger.warning("Sync interrupted by user")
+        log.warning("sync_interrupted")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Sync failed: {e}")
+        log.error("sync_failed", error=str(e))
         sys.exit(1)
 
 
@@ -135,29 +133,25 @@ def log_status(sync_service: NBASyncService):
     """Log current sync status."""
     status = sync_service.get_sync_status()
 
-    logger.info("Database Status:")
-    logger.info("=" * 50)
-    logger.info(f"  Database: {status.get('db_path', 'N/A')}")
-    logger.info(f"  Size: {status.get('db_size_mb', 0)} MB")
-    logger.info("  Records:")
-    logger.info(f"    Teams: {status.get('teams_count', 0)}")
-    logger.info(f"    Players: {status.get('players_count', 0)}")
-    logger.info(f"    Star Players: {status.get('star_players_count', 0)}")
-    logger.info(f"    Games: {status.get('games_count', 0)}")
-    logger.info(f"    Game Player Stats: {status.get('game_players_count', 0)}")
-    logger.info(f"    Standings: {status.get('standings_count', 0)}")
-
     date_range = status.get("games_date_range", {})
-    if date_range.get("min") and date_range.get("max"):
-        logger.info(f"  Games Date Range: {date_range['min']} to {date_range['max']}")
-
-    logger.info("  Last Sync Times:")
+    sync_times = {}
     for sync_type in ["teams", "standings", "star_players", "games"]:
-        last_sync = status.get(f"last_{sync_type}_sync")
-        if last_sync:
-            logger.info(f"    {sync_type}: {last_sync}")
-        else:
-            logger.info(f"    {sync_type}: Never")
+        sync_times[sync_type] = status.get(f"last_{sync_type}_sync") or "Never"
+
+    log.info(
+        "database_status",
+        db_path=status.get("db_path", "N/A"),
+        db_size_mb=status.get("db_size_mb", 0),
+        teams=status.get("teams_count", 0),
+        players=status.get("players_count", 0),
+        star_players=status.get("star_players_count", 0),
+        games=status.get("games_count", 0),
+        game_players=status.get("game_players_count", 0),
+        standings=status.get("standings_count", 0),
+        date_range_min=date_range.get("min"),
+        date_range_max=date_range.get("max"),
+        last_syncs=sync_times,
+    )
 
 
 if __name__ == "__main__":

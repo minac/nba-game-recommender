@@ -8,12 +8,16 @@ from flask import Flask, jsonify, request
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import structlog
+
 from src.core.recommender import GameRecommender
 from src.services.game_service import GameService
-from src.utils.logger import get_logger
+from src.utils.logging_config import setup_logging
 import yaml
 
-logger = get_logger(__name__)
+setup_logging()
+
+log = structlog.get_logger(__name__)
 
 app = Flask(__name__)
 
@@ -48,7 +52,7 @@ def get_best_game():
     days = request.args.get("days", 7)
     favorite_team = request.args.get("team")
 
-    logger.info(f"GET /api/best-game - days={days}, team={favorite_team}")
+    log.info("get_best_game", days=days, team=favorite_team)
 
     # Use shared service (handles validation and error handling)
     response = game_service.get_best_game(days=days, favorite_team=favorite_team)
@@ -65,7 +69,7 @@ def get_best_game():
         else:
             return jsonify(response), 500
 
-    logger.info("Best game recommendation returned successfully")
+    log.info("best_game_returned")
     return jsonify(response)
 
 
@@ -84,7 +88,7 @@ def get_all_games():
     days = request.args.get("days", 7)
     favorite_team = request.args.get("team")
 
-    logger.info(f"GET /api/games - days={days}, team={favorite_team}")
+    log.info("get_all_games", days=days, team=favorite_team)
 
     # Use shared service (handles validation and error handling)
     response = game_service.get_all_games_ranked(days=days, favorite_team=favorite_team)
@@ -101,7 +105,7 @@ def get_all_games():
         else:
             return jsonify(response), 500
 
-    logger.info(f"Returning {response['count']} ranked games")
+    log.info("returning_ranked_games", count=response["count"])
     return jsonify(response)
 
 
@@ -118,12 +122,7 @@ def main():
     port = api_config.get("port", 3000)
     debug = api_config.get("debug", False)
 
-    logger.info(f"🏀 NBA Game Recommender API starting on http://{host}:{port}")
-    logger.info("Available endpoints:")
-    logger.info("  GET /api/health - Health check")
-    logger.info("  GET /api/best-game?days=7&team=LAL - Get best game")
-    logger.info("  GET /api/games?days=7 - Get all games ranked")
-    logger.info("  GET /api/config - Get configuration")
+    log.info("api_server_starting", host=host, port=port)
 
     app.run(host=host, port=port, debug=debug)
 

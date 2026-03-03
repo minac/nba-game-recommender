@@ -14,6 +14,7 @@ dependencies = [
     "python-liquid>=1.12.0",
     "nba-api>=1.11.3",
     "anthropic>=0.79.0",
+    "structlog>=25.5.0",
 ]
 
 [project.optional-dependencies]
