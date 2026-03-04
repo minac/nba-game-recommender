@@ -128,13 +128,13 @@ class GameRecommender:
 
         parts = []
         parts.append(
-            f"Top5 Teams: {breakdown['top5_teams']['count']} \u00d7 {config['top5_team_bonus']} = {breakdown['top5_teams']['points']:.1f}"
+            f"Top5 Teams: {breakdown['top5_teams']['count']} × {config['top5_team_bonus']} = {breakdown['top5_teams']['points']:.1f}"
         )
         parts.append(
             f"Close Game: {breakdown['close_game']['margin']}pt margin = {breakdown['close_game']['points']:.1f}"
         )
         parts.append(
-            f"Stars: {breakdown['star_power']['count']} \u00d7 {config['star_power_weight']} = {breakdown['star_power']['points']:.1f}"
+            f"Stars: {breakdown['star_power']['count']} × {config['star_power_weight']} = {breakdown['star_power']['points']:.1f}"
         )
 
         if breakdown.get("buzz", {}).get("points", 0) > 0:
@@ -181,7 +181,7 @@ class GameRecommender:
             )
             summary = f"""
 {"=" * 60}
-\U0001f3c0 MOST ENGAGING GAME \U0001f3c0
+🏀 MOST ENGAGING GAME 🏀
 {"=" * 60}
 
 {away["name"]} @ {home["name"]}
@@ -198,17 +198,17 @@ DETAILED SCORING EXPLANATION:
 
 1. TOP 5 TEAMS (Bonus: {config["top5_team_bonus"]} pts per team)
    Teams in game: {breakdown["top5_teams"]["count"]}
-   Calculation: {breakdown["top5_teams"]["count"]} \u00d7 {config["top5_team_bonus"]} = {breakdown["top5_teams"]["points"]:.1f} points
+   Calculation: {breakdown["top5_teams"]["count"]} × {config["top5_team_bonus"]} = {breakdown["top5_teams"]["points"]:.1f} points
    {f"Current Top 5 Teams: {', '.join(sorted(self.nba_client.TOP_5_TEAMS))}" if breakdown["top5_teams"]["count"] == 0 else ""}
 
 2. GAME CLOSENESS (Max Bonus: {config["close_game_bonus"]} pts)
    Final Margin: {breakdown["close_game"]["margin"]} points
    Scoring Tiers:
-     \u2022 0-3 pts: {config["close_game_bonus"]} points (100%)
-     \u2022 4-5 pts: {config["close_game_bonus"] * 0.8:.1f} points (80%)
-     \u2022 6-10 pts: {config["close_game_bonus"] * 0.5:.1f} points (50%)
-     \u2022 11-15 pts: {config["close_game_bonus"] * 0.25:.1f} points (25%)
-     \u2022 16+ pts: 0 points
+     • 0-3 pts: {config["close_game_bonus"]} points (100%)
+     • 4-5 pts: {config["close_game_bonus"] * 0.8:.1f} points (80%)
+     • 6-10 pts: {config["close_game_bonus"] * 0.5:.1f} points (50%)
+     • 11-15 pts: {config["close_game_bonus"] * 0.25:.1f} points (25%)
+     • 16+ pts: 0 points
    Points Awarded: {breakdown["close_game"]["points"]:.1f} points
 
 3. TOTAL POINTS (Minimum Threshold: {config["min_total_points"]})
@@ -218,7 +218,7 @@ DETAILED SCORING EXPLANATION:
 
 4. STAR POWER (Weight: {config["star_power_weight"]} pts per star)
    Star Players: {breakdown["star_power"]["count"]}
-   Calculation: {breakdown["star_power"]["count"]} \u00d7 {config["star_power_weight"]} = {breakdown["star_power"]["points"]:.1f} points
+   Calculation: {breakdown["star_power"]["count"]} × {config["star_power_weight"]} = {breakdown["star_power"]["points"]:.1f} points
    {f"Current Star Players: {', '.join(sorted(self.nba_client.STAR_PLAYERS))}" if breakdown["star_power"]["count"] == 0 else ""}
 
 5. FAVORITE TEAM (Bonus: {config["favorite_team_bonus"]} pts)
@@ -234,7 +234,7 @@ FINAL CALCULATION:
 {"=" * 60}
 
 Base Score: {breakdown["top5_teams"]["points"]:.1f} + {breakdown["close_game"]["points"]:.1f} + {breakdown["star_power"]["points"]:.1f} + {breakdown["favorite_team"]["points"]:.1f} + {buzz_pts:.1f}
-{"After Penalty: \u00d7 0.1 (low total points)" if breakdown["total_points"].get("penalty_applied") else ""}
+{"After Penalty: × 0.1 (low total points)" if breakdown["total_points"].get("penalty_applied") else ""}
 FINAL SCORE: {score:.2f}
 
 {"=" * 60}
@@ -243,7 +243,7 @@ FINAL SCORE: {score:.2f}
             # Standard summary mode
             summary = f"""
 {"=" * 60}
-\U0001f3c0 MOST ENGAGING GAME \U0001f3c0
+🏀 MOST ENGAGING GAME 🏀
 {"=" * 60}
 
 {away["name"]} @ {home["name"]}
@@ -254,12 +254,12 @@ ENGAGEMENT SCORE: {score:.2f}
 {"=" * 60}
 
 Score Breakdown:
-  \u2022 Top 5 Teams: {breakdown["top5_teams"]["count"]} team(s) ({breakdown["top5_teams"]["points"]:.1f} pts)
-  \u2022 Close Game: ({breakdown["close_game"]["points"]:.1f} pts)
-  \u2022 Total Points: {breakdown["total_points"]["total"]} (threshold: {breakdown["total_points"]["threshold_met"]})
-  \u2022 Star Players: {breakdown["star_power"]["count"]} ({breakdown["star_power"]["points"]:.1f} pts)
-  \u2022 AI Buzz: {breakdown.get("buzz", {}).get("points", 0):.1f} pts
-  \u2022 Favorite Team: {"Yes" if breakdown["favorite_team"]["has_favorite"] else "No"} ({breakdown["favorite_team"]["points"]:.1f} pts)
+  • Top 5 Teams: {breakdown["top5_teams"]["count"]} team(s) ({breakdown["top5_teams"]["points"]:.1f} pts)
+  • Close Game: ({breakdown["close_game"]["points"]:.1f} pts)
+  • Total Points: {breakdown["total_points"]["total"]} (threshold: {breakdown["total_points"]["threshold_met"]})
+  • Star Players: {breakdown["star_power"]["count"]} ({breakdown["star_power"]["points"]:.1f} pts)
+  • AI Buzz: {breakdown.get("buzz", {}).get("points", 0):.1f} pts
+  • Favorite Team: {"Yes" if breakdown["favorite_team"]["has_favorite"] else "No"} ({breakdown["favorite_team"]["points"]:.1f} pts)
 
 {"=" * 60}
 """
