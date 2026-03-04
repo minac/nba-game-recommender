@@ -49,6 +49,7 @@ config.local.yaml
 
 # Logs
 *.log
+logs/
 
 # Testing
 .pytest_cache/

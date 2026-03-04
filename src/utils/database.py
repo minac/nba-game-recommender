@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 
-from src.utils.logger import get_logger
+import structlog
 
-logger = get_logger(__name__)
+log = structlog.get_logger(__name__)
 
 
 class NBADatabase:
@@ -162,7 +162,7 @@ class NBADatabase:
                 )
             """)
 
-            logger.info(f"Database initialized at {self.db_path}")
+            log.info("database_initialized", path=str(self.db_path))
 
     def get_last_sync(self, sync_type: str) -> Optional[datetime]:
         """Get the last sync time for a specific sync type."""
@@ -576,4 +576,4 @@ class NBADatabase:
                 "sync_metadata",
             ]:
                 cursor.execute(f"DELETE FROM {table}")
-            logger.info("Database cleared")
+            log.info("database_cleared")

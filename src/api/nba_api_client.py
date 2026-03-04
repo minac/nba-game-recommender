@@ -10,10 +10,11 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
 import yaml
 
-from src.utils.logger import get_logger
+import structlog
+
 from src.utils.database import NBADatabase
 
-logger = get_logger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def get_database_path(config_path: str = "config.yaml") -> str:
@@ -26,7 +27,7 @@ def get_database_path(config_path: str = "config.yaml") -> str:
     # Check env var first (production)
     env_path = os.environ.get("DATABASE_PATH")
     if env_path:
-        logger.info(f"Using database path from DATABASE_PATH env var: {env_path}")
+        log.info("using_database_path", source="DATABASE_PATH env var", path=env_path)
         return env_path
 
     # Fall back to config file (development)
@@ -34,10 +35,10 @@ def get_database_path(config_path: str = "config.yaml") -> str:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
             db_path = config.get("database", {}).get("path", "data/nba_games.db")
-            logger.info(f"Using database path from config: {db_path}")
+            log.info("using_database_path", source="config", path=db_path)
             return db_path
     except Exception as e:
-        logger.warning(f"Could not load config, using default: {e}")
+        log.warning("config_load_failed_using_default", error=str(e))
         return "data/nba_games.db"
 
 
@@ -113,20 +114,24 @@ class NBAClient:
         top_teams = self.db.get_top_teams(5)
         if top_teams:
             self._top_teams_cache = set(top_teams)
-            logger.info(f"Loaded top teams from DB: {self._top_teams_cache}")
+            log.info("loaded_top_teams", source="db", teams=self._top_teams_cache)
         else:
             self._top_teams_cache = FALLBACK_TOP_TEAMS
-            logger.info(f"Using fallback top teams: {self._top_teams_cache}")
+            log.info("loaded_top_teams", source="fallback", teams=self._top_teams_cache)
 
         # Load star players from database
         star_players = self.db.get_star_players()
         if star_players:
             self._star_players_cache = set(star_players)
-            logger.info(f"Loaded {len(self._star_players_cache)} star players from DB")
+            log.info(
+                "loaded_star_players", source="db", count=len(self._star_players_cache)
+            )
         else:
             self._star_players_cache = FALLBACK_STAR_PLAYERS
-            logger.info(
-                f"Using fallback star players: {len(self._star_players_cache)} players"
+            log.info(
+                "loaded_star_players",
+                source="fallback",
+                count=len(self._star_players_cache),
             )
 
     def get_games_last_n_days(self, days: int = 7) -> List[Dict]:
@@ -150,14 +155,15 @@ class NBAClient:
         db_games = self.db.get_games_in_range(start_str, end_str)
 
         if db_games:
-            logger.info(
-                f"Found {len(db_games)} games in database for {start_str} to {end_str}"
+            log.info(
+                "games_found_in_db", count=len(db_games), start=start_str, end=end_str
             )
             return self._format_games_from_db(db_games)
 
         # If no games in DB, we need to sync first
-        logger.warning(f"No games found in database for {start_str} to {end_str}")
-        logger.warning("Run 'sync' command to populate the database first")
+        log.warning(
+            "no_games_in_db", start=start_str, end=end_str, hint="run sync command"
+        )
         return []
 
     def _format_games_from_db(self, db_games: List[Dict]) -> List[Dict]:
@@ -253,7 +259,7 @@ class NBASyncService:
         """
         from nba_api.stats.static import teams as nba_teams
 
-        logger.info("Syncing NBA teams...")
+        log.info("syncing_teams")
         all_teams = nba_teams.get_teams()
 
         for team in all_teams:
@@ -267,7 +273,7 @@ class NBASyncService:
             )
 
         self.db.set_last_sync("teams", f"Synced {len(all_teams)} teams")
-        logger.info(f"Synced {len(all_teams)} teams")
+        log.info("synced_teams", count=len(all_teams))
         return len(all_teams)
 
     def sync_standings(self) -> int:
@@ -279,7 +285,7 @@ class NBASyncService:
         """
         from nba_api.stats.endpoints import leaguestandingsv3
 
-        logger.info("Syncing standings...")
+        log.info("syncing_standings")
         season = self._get_current_season()
 
         try:
@@ -303,11 +309,11 @@ class NBASyncService:
                 count += 1
 
             self.db.set_last_sync("standings", f"Synced {count} standings for {season}")
-            logger.info(f"Synced {count} standings for {season}")
+            log.info("synced_standings", count=count, season=season)
             return count
 
         except Exception as e:
-            logger.error(f"Error syncing standings: {e}")
+            log.error("error_syncing_standings", error=str(e))
             return 0
 
     def sync_star_players(self, top_n: int = 30) -> int:
@@ -322,7 +328,7 @@ class NBASyncService:
         """
         from nba_api.stats.endpoints import leagueleaders
 
-        logger.info(f"Syncing top {top_n} scorers as star players...")
+        log.info("syncing_star_players", top_n=top_n)
         season = self._get_current_season()
 
         try:
@@ -357,11 +363,11 @@ class NBASyncService:
             self.db.set_last_sync(
                 "star_players", f"Synced {len(star_names)} star players for {season}"
             )
-            logger.info(f"Synced {len(star_names)} star players")
+            log.info("synced_star_players", count=len(star_names))
             return len(star_names)
 
         except Exception as e:
-            logger.error(f"Error syncing star players: {e}")
+            log.error("error_syncing_star_players", error=str(e))
             return 0
 
     def sync_games(self, days: int = 14) -> int:
@@ -378,7 +384,7 @@ class NBASyncService:
         """
         from nba_api.stats.endpoints import leaguegamefinder
 
-        logger.info(f"Syncing games for the last {days} days...")
+        log.info("syncing_games", days=days)
 
         # Calculate date range
         end_date = datetime.now() - timedelta(days=1)  # Yesterday
@@ -399,7 +405,7 @@ class NBASyncService:
             games_df = finder.get_data_frames()[0]
 
             if games_df.empty:
-                logger.warning("No games found from LeagueGameFinder")
+                log.warning("no_games_from_league_game_finder")
                 return 0
 
             # Filter to date range
@@ -412,7 +418,7 @@ class NBASyncService:
             # LeagueGameFinder returns 2 rows per game (one per team)
             # Group by GAME_ID to get unique games
             unique_games = games_df.drop_duplicates("GAME_ID")
-            logger.info(f"Found {len(unique_games)} games in date range")
+            log.info("found_games_in_date_range", count=len(unique_games))
 
             # Get season year for database
             now = datetime.now()
@@ -461,7 +467,9 @@ class NBASyncService:
                 away_team = self.db.get_team_by_abbr(away_abbr)
 
                 if not home_team or not away_team:
-                    logger.debug(f"Team not found: {home_abbr} or {away_abbr}")
+                    log.debug(
+                        "team_not_found", home_abbr=home_abbr, away_abbr=away_abbr
+                    )
                     continue
 
                 self.db.upsert_game(
@@ -477,11 +485,11 @@ class NBASyncService:
                 count += 1
 
             self.db.set_last_sync("games", f"Synced {count} games for last {days} days")
-            logger.info(f"Total games synced: {count}")
+            log.info("games_synced", count=count)
             return count
 
         except Exception as e:
-            logger.error(f"Error syncing games: {e}")
+            log.error("error_syncing_games", error=str(e))
             return 0
 
     def _sync_games_for_date(self, game_date: str) -> int:
@@ -498,7 +506,7 @@ class NBASyncService:
 
         # Check if we already have games for this date
         if self.db.has_games_for_date(game_date):
-            logger.debug(f"Games for {game_date} already in database, skipping")
+            log.debug("games_already_in_db", game_date=game_date)
             return 0
 
         try:
@@ -513,7 +521,7 @@ class NBASyncService:
             line_score_df = dfs[1]  # LineScore (has actual scores)
 
             if games_df.empty:
-                logger.debug(f"No games found for {game_date}")
+                log.debug("no_games_for_date", game_date=game_date)
                 return 0
 
             # Build score lookup from LineScore
@@ -562,11 +570,13 @@ class NBASyncService:
                 # Sync player stats for this game
                 self._sync_game_players(game_id)
 
-            logger.info(f"Synced {count} games for {game_date}")
+            log.info("synced_games_for_date", count=count, game_date=game_date)
             return count
 
         except Exception as e:
-            logger.warning(f"Error syncing games for {game_date}: {e}")
+            log.warning(
+                "error_syncing_games_for_date", game_date=game_date, error=str(e)
+            )
             return 0
 
     def _sync_game_players(self, game_id: str):
@@ -609,7 +619,7 @@ class NBASyncService:
                 )
 
         except Exception as e:
-            logger.warning(f"Error syncing players for game {game_id}: {e}")
+            log.warning("error_syncing_game_players", game_id=game_id, error=str(e))
 
     def sync_buzz_scores(self, days: int = 14) -> int:
         """Score games for online buzz using Claude API with web search.
@@ -624,7 +634,7 @@ class NBASyncService:
 
         scorer = BuzzScorer()
         if not scorer.available:
-            logger.info("Buzz scoring skipped: no Anthropic API key configured")
+            log.info("buzz_scoring_skipped", reason="no Anthropic API key configured")
             return 0
 
         # Get recent games that need buzz scoring
@@ -637,7 +647,7 @@ class NBASyncService:
 
         db_games = self.db.get_games_in_range(start_str, end_str)
         if not db_games:
-            logger.info("No games to score for buzz")
+            log.info("no_games_to_score_for_buzz")
             return 0
 
         # Filter out games that already have buzz scores
@@ -645,7 +655,7 @@ class NBASyncService:
         games_to_score = [g for g in db_games if g["game_id"] not in existing_buzz]
 
         if not games_to_score:
-            logger.info("All games already have buzz scores")
+            log.info("all_games_already_have_buzz_scores")
             return 0
 
         # Format games for the scorer
@@ -664,7 +674,7 @@ class NBASyncService:
                 }
             )
 
-        logger.info(f"Scoring {len(formatted_games)} games for buzz...")
+        log.info("scoring_games_for_buzz", count=len(formatted_games))
         buzz_results = scorer.score_games(formatted_games)
 
         # Store results in database
@@ -679,7 +689,7 @@ class NBASyncService:
                 count += 1
 
         self.db.set_last_sync("buzz_scores", f"Scored {count} games for buzz")
-        logger.info(f"Buzz scoring complete: {count} games scored")
+        log.info("buzz_scoring_complete", count=count)
         return count
 
     def sync_all(self, days: int = 14) -> Dict[str, int]:
@@ -692,7 +702,7 @@ class NBASyncService:
         Returns:
             Dictionary with sync counts
         """
-        logger.info("Starting full sync...")
+        log.info("starting_full_sync")
 
         results = {
             "teams": self.sync_teams(),
@@ -702,7 +712,7 @@ class NBASyncService:
             "buzz_scores": self.sync_buzz_scores(days),
         }
 
-        logger.info(f"Full sync complete: {results}")
+        log.info("full_sync_complete", results=results)
         return results
 
     def get_sync_status(self) -> Dict[str, any]:

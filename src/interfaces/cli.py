@@ -8,15 +8,19 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import structlog
+
 from src.services.game_service import GameService
 from src.core.recommender import GameRecommender
-from src.utils.logger import get_logger
+from src.utils.logging_config import setup_logging
 
-logger = get_logger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def main():
     """Main CLI entry point."""
+    setup_logging()
+
     parser = argparse.ArgumentParser(
         description="Find the most engaging NBA game from the last week"
     )
@@ -72,8 +76,12 @@ def main():
 
     args = parser.parse_args()
 
-    logger.info(
-        f"CLI invoked: days={args.days}, team={args.team}, show_all={args.all}, explain={args.explain}"
+    log.info(
+        "cli_invoked",
+        days=args.days,
+        team=args.team,
+        show_all=args.all,
+        explain=args.explain,
     )
 
     try:
@@ -81,7 +89,7 @@ def main():
         recommender = GameRecommender(config_path=args.config)
         # Create shared game service
         game_service = GameService(recommender=recommender)
-        logger.info(f"Loaded configuration from {args.config}")
+        log.info("loaded_config", path=args.config)
 
         # Handle --list-stars command
         if args.list_stars:
@@ -143,7 +151,7 @@ def main():
             if not response["success"]:
                 error_code = response.get("error_code")
                 error_message = response.get("error", "Unknown error")
-                logger.warning(f"Error getting games: {error_message}")
+                log.warning("error_getting_games", error=error_message)
                 print(f"Error: {error_message}")
                 if error_code == "VALIDATION_ERROR":
                     sys.exit(1)
@@ -152,7 +160,7 @@ def main():
             games = response["data"]
 
             if not games:
-                logger.warning("No games found for the specified criteria")
+                log.warning("no_games_found")
                 print("No completed games found in the specified period.")
                 return
 
@@ -188,7 +196,7 @@ def main():
             if not response["success"]:
                 error_code = response.get("error_code")
                 error_message = response.get("error", "Unknown error")
-                logger.warning(f"Error getting best game: {error_message}")
+                log.warning("error_getting_best_game", error=error_message)
                 if error_code == "NO_GAMES":
                     print("No completed games found in the specified period.")
                 else:
@@ -198,16 +206,16 @@ def main():
                 return
 
             best_game = response["data"]
-            logger.info("Successfully retrieved best game recommendation")
+            log.info("best_game_retrieved")
             summary = game_service.format_game_summary(best_game, explain=args.explain)
             print(summary)
 
     except FileNotFoundError:
-        logger.error(f"Configuration file '{args.config}' not found")
+        log.error("config_not_found", path=args.config)
         print(f"Error: Configuration file '{args.config}' not found.")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"CLI error: {e}", exc_info=True)
+        log.error("cli_error", error=str(e), exc_info=True)
         print(f"Error: {e}")
         sys.exit(1)
 
