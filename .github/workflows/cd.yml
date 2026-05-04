@@ -1,58 +1,41 @@
-name: CD - Deploy to Render
+name: CD - Deploy to lab
 
-# Triggers Render deployment which runs buildCommand from render.yaml.
-# The buildCommand syncs NBA data to SQLite before starting the app.
-# Note: Render free tier has no persistent disk, so data is re-synced on each deploy.
+# Triggers a Coolify deploy on the self-hosted lab.
+# Lab URL + app identifier kept in repo secrets so this public repo
+# doesn't fingerprint the lab in source.
+# IaC for the lab lives in a separate private repo.
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to Render
+    name: Deploy to lab
     runs-on: ubuntu-latest
-    # Only run on merged PRs or direct pushes to main (not on PR branches)
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
+      - name: Trigger Coolify deploy
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          APP_UUID: ${{ secrets.APP_UUID }}
+          APP_NAME: ${{ secrets.APP_NAME }}
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          set -euo pipefail
+          for v in COOLIFY_BASE_URL COOLIFY_API_TOKEN APP_UUID APP_NAME; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v repo secret is not set."
+              exit 1
+            fi
+          done
 
-      - name: Install dependencies
-        run: uv sync
+          echo "🚀 Triggering Coolify deploy for $APP_NAME..."
+          response=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            "$COOLIFY_BASE_URL/deploy?uuid=$APP_UUID")
 
-      - name: Trigger Render Deployment
-        run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            echo "⚠️  RENDER_DEPLOY_HOOK_URL secret is not set"
-            echo "Please add your Render Deploy Hook URL as a GitHub secret"
-            echo "Get it from: Render Dashboard > Your Service > Settings > Deploy Hook"
-            exit 1
-          fi
-
-          echo "🚀 Triggering deployment to Render..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
-
-          if [ "$response" -eq 200 ] || [ "$response" -eq 201 ] || [ "$response" -eq 202 ]; then
-            echo "✅ Deployment triggered successfully!"
-          else
-            echo "❌ Deployment trigger failed with status code: $response"
-            exit 1
-          fi
-
-      - name: Deployment Status
-        run: |
-          echo "🎉 Deployment has been triggered on Render"
-          echo "Check the deployment status at: https://dashboard.render.com/"
+          deployment_uuid=$(echo "$response" | jq -r '.deployments[0].deployment_uuid')
+          echo "✅ Deployment queued: $deployment_uuid"
