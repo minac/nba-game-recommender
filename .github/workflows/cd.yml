@@ -1,58 +1,38 @@
-name: CD - Deploy to Render
+name: CD - Deploy to lab
 
-# Triggers Render deployment which runs buildCommand from render.yaml.
-# The buildCommand syncs NBA data to SQLite before starting the app.
-# Note: Render free tier has no persistent disk, so data is re-synced on each deploy.
+# Triggers a Coolify deploy on the self-hosted lab (Hetzner CCX13).
+# Manifests + IaC for the lab live at github.com/minac/lab.
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to Render
+    name: Deploy to lab
     runs-on: ubuntu-latest
-    # Only run on merged PRs or direct pushes to main (not on PR branches)
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
+      - name: Trigger Coolify deploy
+        env:
+          COOLIFY_BASE_URL: https://lab.migueldavid.eu/api/v1
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          APP_UUID: dorpfrmsyzl3w1h8h7wpwqiw
+          APP_NAME: nba-game-recommender
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Trigger Render Deployment
-        run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            echo "⚠️  RENDER_DEPLOY_HOOK_URL secret is not set"
-            echo "Please add your Render Deploy Hook URL as a GitHub secret"
-            echo "Get it from: Render Dashboard > Your Service > Settings > Deploy Hook"
+          set -euo pipefail
+          if [ -z "$COOLIFY_API_TOKEN" ]; then
+            echo "::error::COOLIFY_API_TOKEN secret is not set on this repo."
             exit 1
           fi
 
-          echo "🚀 Triggering deployment to Render..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          echo "🚀 Triggering Coolify deploy for $APP_NAME ($APP_UUID)..."
+          response=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            "$COOLIFY_BASE_URL/deploy?uuid=$APP_UUID")
 
-          if [ "$response" -eq 200 ] || [ "$response" -eq 201 ] || [ "$response" -eq 202 ]; then
-            echo "✅ Deployment triggered successfully!"
-          else
-            echo "❌ Deployment trigger failed with status code: $response"
-            exit 1
-          fi
-
-      - name: Deployment Status
-        run: |
-          echo "🎉 Deployment has been triggered on Render"
-          echo "Check the deployment status at: https://dashboard.render.com/"
+          deployment_uuid=$(echo "$response" | jq -r '.deployments[0].deployment_uuid')
+          echo "✅ Deployment queued: $deployment_uuid"
+          echo "  Watch: https://lab.migueldavid.eu/applications/$APP_UUID"
